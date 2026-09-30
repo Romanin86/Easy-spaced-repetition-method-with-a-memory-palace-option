@@ -1,308 +1,312 @@
 # Palais Mental
 
-**Français** · [English](README.en.md)
+[Français](README.md) · **English**
 
-Un outil de mémorisation par palais mental et répétition espacée, contenu dans **un seul fichier HTML**. Pas d'installation, pas de compte, pas de serveur, pas de connexion requise.
+A memory-palace and spaced-repetition study tool contained in **a single HTML file**. No installation, no account, no server, no connection required.
 
 Version 7.0
 
----
-
-## Démarrage rapide
-
-1. Téléchargez `palais-mental.html`
-2. Ouvrez-le dans Firefox — ou dans Chrome et Edge, voir « Plateformes et navigateurs »
-3. C'est tout
-
-Pour vos élèves, l'application produit un **fichier de lecture** autonome, à distribuer comme n'importe quel fichier.
-
-**Un mot vous échappe ?** Le **Glossaire**, dans le menu latéral, définit chaque terme de l'application en une phrase et dit où le trouver.
+> **The interface is in French.** Button and menu names in this document are translations; the original French label is given in brackets where it helps you find it on screen.
 
 ---
 
-## Vie privée, hors ligne, sécurité
+## Quick start
 
-**Tout reste sur votre appareil.** L'application ne contacte aucun serveur au démarrage : ni Google, ni mesure d'audience, ni police téléchargée, ni bibliothèque externe. Tout le nécessaire est dans le fichier.
+1. Download `palais-mental.html`
+2. Open it in Firefox — or in Chrome and Edge, see "Platforms and browsers"
+3. That's it
 
-**Tout fonctionne sans connexion**, application comme fichier élève : création, révision, rappels, import et export de tableurs, sauvegardes, archives ZIP.
+For your students, the application produces a standalone **reader file**, distributed like any other file.
 
-Seules quelques fonctions **facultatives** passent par internet, et uniquement quand vous les déclenchez : la génération d'images, la recherche de photos libres et de définitions, et les boutons qui ouvrent une IA depuis le générateur de prompt.
-
-**Le contenu importé est traité comme non fiable.** Un tableur ou une sauvegarde piégés ne peuvent pas exécuter de code : le texte est neutralisé avant affichage, et seules les adresses web `https://` ou `http://` peuvent être ouvertes.
+**A word you don't know?** The **Glossary** [*Glossaire*], in the side menu, defines every term of the application in one sentence and tells you where to find it.
 
 ---
 
-## Plateformes et navigateurs
+## Privacy, offline use, security
 
-| Plateforme | Fichier ouvert depuis le disque | Fichier servi par une adresse web |
+**Everything stays on your device.** The application contacts no server on startup: no Google, no analytics, no downloaded fonts, no external libraries. Everything it needs is inside the file.
+
+**Everything works offline**, application and reader file alike: creating content, reviewing, reminders, spreadsheet import and export, backups, ZIP archives.
+
+Only a few **optional** features use the internet, and only when you trigger them: image generation, free-licence photo and definition search, and the buttons that open an AI from the prompt generator.
+
+**Imported content is treated as untrusted.** A crafted spreadsheet or backup cannot execute code: text is neutralised before display, and only `https://` or `http://` web addresses can be opened.
+
+---
+
+## Platforms and browsers
+
+| Platform | File opened from disk | File served from a web address |
 |---|---|---|
-| **Windows, macOS, Linux — Firefox** | Complet | Complet |
-| **Windows, macOS, Linux — Chrome, Edge** | Capacité réduite, voir ci-dessous | Complet |
-| **Android — Firefox, Chrome** | Complet | Complet |
-| **iPad, iPhone** | Non pris en charge | Non pris en charge |
+| **Windows, macOS, Linux — Firefox** | Full | Full |
+| **Windows, macOS, Linux — Chrome, Edge** | Reduced capacity, see below | Full |
+| **Android — Firefox, Chrome** | Full | Full |
+| **iPad, iPhone** | Not supported | Not supported |
 
-**Chrome et Edge** refusent le stockage complet aux fichiers ouverts depuis le disque. L'application bascule alors sur un stockage de secours et l'annonce par un bandeau : tout fonctionne, mais la capacité tombe à quelques mégaoctets, vite insuffisante avec des images. Deux solutions : ouvrir le fichier avec **Firefox**, ou le servir depuis une adresse web — un petit serveur local suffit.
+**Chrome and Edge** refuse full storage to files opened from disk. The application then switches to fallback storage and says so with a banner: everything works, but capacity drops to a few megabytes, quickly insufficient with images. Two solutions: open the file in **Firefox**, or serve it from a web address — a small local server is enough.
 
-**Le fichier de lecture** n'a pas cette limite : la progression d'un élève pèse quelques kilooctets, le stockage de secours la conserve sans difficulté.
+**The reader file** does not have this limit: a student's progress weighs a few kilobytes, which fallback storage handles easily.
 
-**Sur un lecteur réseau**, utilisez une lettre de lecteur (`Z:`) ou une adresse web, plutôt qu'un chemin `\\serveur\partage` que certains navigateurs bloquent. Les données ne sont jamais écrites sur le partage : chaque utilisateur a les siennes, sur son poste, et vingt élèves peuvent ouvrir le même fichier en même temps.
+**On a network drive**, use a drive letter (`Z:`) or a web address rather than a `\\server\share` path, which some browsers block. Data is never written to the share: each user has their own, on their own machine, and twenty students can open the same file at once.
 
-**Sur iPad et iPhone**, l'aperçu de l'app Fichiers n'exécute pas le JavaScript : l'application ne peut pas démarrer depuis un fichier local. Un message l'explique au lieu d'afficher une page vide.
+**On iPad and iPhone**, the Files app preview does not execute JavaScript: the application cannot start from a local file. A message explains this instead of showing a blank page.
 
 ---
 
-## Deux formes
+## Two forms
 
-| | **L'application** | **Le fichier de lecture** |
+| | **The application** | **The reader file** |
 |---|---|---|
-| Pour qui | L'enseignant | Les élèves |
-| Créer, modifier, supprimer | Oui | Non |
-| Réviser, parcourir, se programmer des rappels | Oui | Oui |
-| Progression enregistrée | Sur votre appareil | Sur l'appareil de l'élève, sans jamais toucher à votre version |
+| Who it's for | The teacher | The students |
+| Create, edit, delete | Yes | No |
+| Review, walk through, schedule reminders | Yes | Yes |
+| Where progress is saved | On your device | On the student's device, never touching your copy |
 
 ---
 
-# Première partie — L'application
+# Part one — The application
 
-## 1. La structure
+## 1. How content is organised
 
-Trois niveaux, du plus large au plus fin :
+Three levels, from broad to precise:
 
-- **Palais** — une matière, un programme, un thème. *« Histoire-géographie 3e »*
-- **Salle** — un chapitre, une notion. *« La Seconde Guerre mondiale »*
-- **Objet** — une fiche, une chose à retenir. *« Débarquement de Normandie »*
+- **Palace** — a subject, a syllabus, a theme. *"Year 10 History"*
+- **Room** — a chapter, a topic. *"The Second World War"*
+- **Object** — a card, one thing to remember. *"D-Day landings"*
 
-Un objet porte un **titre** (la question), une **information à retenir** (la réponse), et éventuellement une **image**, une **phrase mnémotechnique**, des **étiquettes** et un **document joint**.
+An object holds a **title** (the question), the **information to remember** (the answer), and optionally an **image**, a **mnemonic phrase**, **tags** and an **attached document**.
 
-Le tri choisi sur l'accueil s'applique à toutes les listes de palais de l'application.
+The sort order chosen on the home screen applies to every palace list in the application.
 
-## 2. Créer du contenu
+## 2. Creating content
 
-Quatre voies :
+Four routes:
 
-- **Le générateur de prompt** — la plus simple pour débuter, voir la section suivante.
-- **Un tableur**, rempli à la main ou par une IA. Le modèle vierge se télécharge dans Paramètres → Créer et organiser le contenu → Import / export tableur. Une ligne = une fiche ; les palais et salles manquants sont créés à l'import.
-- **À la main**, palais par palais.
-- **L'import** d'une sauvegarde ou d'une archive, en JSON ou en ZIP.
+- **The prompt generator** — the easiest way to start, see the next section.
+- **A spreadsheet**, filled in by hand or by an AI. Download the blank template from Settings → Create and organise content → Spreadsheet import/export [*Paramètres → Créer et organiser le contenu → Import / export tableur*]. One row = one card; missing palaces and rooms are created on import.
+- **By hand**, palace by palace.
+- **Importing** a backup or an archive, JSON or ZIP.
 
-**Après un import**, un bilan confirme que tout est enregistré — nombre de fiches, détail par palais — et propose, **en option**, d'ajouter des images, avec une estimation de la durée. On peut aussi le faire plus tard.
+> The spreadsheet column names stay in French — `palais`, `salle`, `objet`… — because they are the headers the application expects.
 
-## 3. Le générateur de prompt
+**After an import**, a summary [*Import terminé*] confirms everything is saved — number of cards, details per palace — and offers, **as an option**, to add images, with an estimate of the time needed. This can also be done later.
 
-Il rédige pour vous la demande à faire à une IA. Menu latéral → **Générateur de prompt**.
+## 3. The prompt generator
 
-**Trois niveaux de personnalisation :**
+It writes the request to give an AI for you. Side menu → **Prompt generator** [*Générateur de prompt*].
 
-| Niveau | Ce qu'on remplit |
+**Three levels of customisation:**
+
+| Level | What you fill in |
 |---|---|
-| **Express** | Le sujet, le public, le nombre de fiches. L'IA propose le reste. |
-| **Guidé** — *par défaut* | + nom du palais, salles, types de contenu, images, favoris |
-| **Expert** | + lignes « Méthode » et « Piège », mnémotechniques, longueur des réponses, style d'image, référence à suivre, exclusions |
+| **Express** | The subject, the audience, the number of cards. The AI proposes the rest. |
+| **Guided** [*Guidé*] — *default* | + palace name, rooms, content types, images, favourites |
+| **Expert** | + "Method" and "Trap" lines, mnemonics, answer length, image style, reference to follow, exclusions |
 
-**Les règles d'une bonne fiche de répétition espacée sont ajoutées d'office**, à tous les niveaux : des faits atomiques, un titre qui ne contient jamais la réponse, des réponses toutes différentes pour la révision à l'envers, l'interdiction d'inventer, aucune carte ni sujet douloureux en image.
+**The rules of a good spaced-repetition card are added automatically**, at every level: atomic facts, a title that never contains the answer, answers that are all different for reverse review, a ban on inventing, no maps or distressing subjects in images.
 
-**Adapter pour**, à tous les niveaux :
-- cinq cases qui se cumulent : **dyslexie et dysorthographie, dyscalculie, dyspraxie, dysphasie, troubles de l'attention** ;
-- **élèves allophones (FLS)** : 35 langues d'origine au choix, plus une langue libre, et le niveau de français de A1 à B1. L'IA ajoute la traduction et, si besoin, une transcription en alphabet latin. Faites-la relire par un locuteur quand c'est possible.
+**Adapt for** [*Adapter pour*], at every level:
+- five boxes that combine: **dyslexia and dysorthographia, dyscalculia, dyspraxia, dysphasia, attention disorders**;
+- **students learning French as a second language (FLS)**: 35 home languages to choose from, plus a free field, and a French level from A1 to B1. The AI adds a translation and, where needed, a transliteration into the Latin alphabet. Have it checked by a speaker when possible.
 
-**Le résultat** se met à jour en direct. « Copier le prompt », « Télécharger le modèle vierge », puis six IA — ChatGPT, Claude, Gemini, Le Chat, DeepSeek, Copilot : chaque bouton copie le prompt puis ouvre le site. Il reste à joindre le modèle vierge et coller. **« + Ajouter une IA »** permet d'ajouter n'importe quelle autre IA par son adresse.
+**The result** updates live. "Copy the prompt" [*Copier le prompt*], "Download the blank template" [*Télécharger le modèle vierge*], then six AIs — ChatGPT, Claude, Gemini, Le Chat, DeepSeek, Copilot: each button copies the prompt, then opens the site. Attach the blank template and paste. **"+ Add an AI"** [*+ Ajouter une IA*] adds any other AI by its address.
 
-**Pour les IA gratuites** qui ne savent pas produire de fichier, le prompt leur demande un tableau CSV à points-virgules, que l'application importe aussi.
+**For free AIs** that cannot produce a file, the prompt asks them for a semicolon-separated CSV table, which the application also imports.
 
-**La bibliothèque** conserve vos prompts : les recharger dans le formulaire, les renommer, les modifier, les copier, les supprimer.
+**The library** keeps your prompts: reload them into the form, rename, edit, copy, delete.
 
-## 4. Affiner le contenu
+## 4. Refining content
 
-Un contenu généré est globalement juste, jamais parfait. Le mode **Parcourir** fait défiler les fiches sans interrogation : c'est le mode de relecture.
+Generated content is broadly right, never perfect. **Walk-through** mode [*Parcourir*] steps through cards with no questioning: it is the proofreading mode.
 
-- **Modifier** corrige la fiche et vous ramène à la même carte.
-- **L'étoile** marque ce qui mérite d'être gardé.
+- **Edit** fixes the card and returns you to the same card.
+- **The star** marks what deserves to be kept.
 
-**Le circuit de curation**, pour extraire le meilleur d'un gros palais généré :
+**The curation workflow**, to extract the best from a large generated palace:
 
-1. Dupliquer le palais (menu « Plus »)
-2. Parcourir la copie en étoilant ce que vous gardez
-3. Dans une salle, cliquer **Favoris** jusqu'à afficher **« Non favoris »**
-4. Tout sélectionner, supprimer
+1. Duplicate the palace ("More" menu)
+2. Walk through the copy, starring what you keep
+3. Inside a room, click **Favourites** until it reads **"Non favourites"** [*Non favoris*]
+4. Select all, delete
 
-La suppression reste annulable douze secondes, et un instantané est pris avant.
+Deletion stays undoable for twelve seconds, and a snapshot is taken beforehand.
 
-## 5. Les images
+## 5. Images
 
-Trois sources, pour une fiche ou pour un lot :
+Three sources, for one card or a batch:
 
-- **Génération par IA** — Pollinations.ai, gratuit, sans compte, clé facultative
-- **Photo libre** — Openverse, Wikimedia Commons ; l'auteur, la source et la licence sont conservés
-- **Import** depuis votre appareil
+- **AI generation** — Pollinations.ai, free, no account, key optional
+- **Free photo** [*Photo libre*] — Openverse, Wikimedia Commons; author, source and licence are kept
+- **Import** from your device
 
-**Le style compte plus que tout.** « Fidèle au sujet » illustre la notion ; les autres styles créent des scènes décalées, efficaces pour un mot isolé. En lot, le style est fixé pour toute la série.
+**Style matters more than anything.** "True to subject" [*Fidèle au sujet*] illustrates the concept; the other styles create offbeat scenes, effective for an isolated word. In a batch, the style is fixed for the whole run.
 
-**Images en lot** : Paramètres → Images et services en ligne → Images en lot, ou menu « Plus » d'un palais.
+**Batch images** [*Images en lot*]: Settings → Images and online services, or a palace's "More" menu.
 
-## 6. Les documents joints
+## 6. Attached documents
 
-Chaque fiche peut porter un PDF ou un document bureautique. Le PDF s'ouvre pendant la révision, même hors connexion ; les autres formats s'ouvrent dans le logiciel de l'élève. Un import en lot associe chaque fichier à la fiche dont le titre correspond à son nom.
+Each card can carry a PDF or an office document. The PDF opens during review, even offline; other formats open in the student's own software. A batch import attaches each file to the card whose title matches its name.
 
-## 7. Réviser
+## 7. Reviewing
 
-La révision est espacée : une fiche sue revient plus tard, une fiche manquée revient vite.
+Review is spaced: a card you knew comes back later, one you missed comes back soon.
 
-**Au-dessus de chaque question**, une ligne indique d'où vient la fiche — *● Histoire-géographie 3e › La Seconde Guerre mondiale* — avec la couleur du palais. On sait toujours où l'on est, même dans une révision qui mélange plusieurs salles.
+**Above each question**, a line shows where the card comes from — *● Year 10 History › The Second World War* — in the palace's colour. You always know where you are, even in a review that mixes several rooms.
 
-Pendant une révision : modifier la fiche, l'étoiler, **la mettre de côté** pour reprendre plus tard, afficher la phrase mnémotechnique, masquer les images. Une session interrompue est proposée à la reprise au retour.
+During a review: edit the card, star it, **set it aside** to resume later, show the mnemonic phrase, hide images. An interrupted session is offered for resumption on your return.
 
-**Le mode position** demande de retrouver une fiche à partir de sa salle et de son rang, comme dans un vrai palais mental.
+**Position mode** asks you to recall a card from its room and its rank, as in a real memory palace.
 
-## 8. Les favoris
+## 8. Favourites
 
-L'étoile marque une fiche — dans une salle, en révision ou en parcours. Menu latéral → **Favoris** pour les réviser tous, palais confondus ; **« Parcourir les favoris »** pour les relire sans interrogation.
+The star marks a card — in a room, during review or walk-through. Side menu → **Favourites** [*Favoris*] reviews them all, across palaces; **"Walk through favourites"** [*Parcourir les favoris*] rereads them without questioning.
 
-Le filtre d'une salle a trois états : tous, favoris, non favoris. **Retrait en masse** dans Paramètres → Créer et organiser le contenu → Favoris.
+A room's filter has three states: all, favourites, non favourites. **Bulk removal** in Settings → Create and organise content → Favourites.
 
-## 9. Les rappels
+## 9. Reminders
 
-Une série de rappels programme des révisions à dates précises : ce qu'il faut revoir, un point de départ, des délais — J+1, J+3, J+7…
+A reminder series schedules reviews on specific dates: what to revisit, a starting point, intervals — D+1, D+3, D+7…
 
-Séries prêtes : **Courbe de l'oubli**, **Progressive**, **Hebdomadaire**, **Avant examen**. Toutes modifiables. L'**Agenda** présente un calendrier à pastilles colorées.
+Ready-made series: **Forgetting curve**, **Progressive**, **Weekly**, **Exam run-up**. All editable. The **Agenda** shows a calendar with colour dots.
 
-## 10. Sauvegarder, archiver
+## 10. Backing up, archiving
 
-Paramètres → Exporter et sauvegarder :
+Settings → Export and back up [*Exporter et sauvegarder*]:
 
-- **Sauvegarde & transfert** — la **sauvegarde complète**, en JSON ou en ZIP : palais, images, documents, progression, rappels, fond d'écran, services, bibliothèque de prompts, IA ajoutées. Et l'**archive de palais choisis**, sans aucun réglage : la réimporter ne touche à rien d'autre.
-- **Sauvegardes automatiques** — des instantanés pris avant chaque opération risquée, restaurables.
+- **Backup & transfer** [*Sauvegarde & transfert*] — the **full backup**, JSON or ZIP: palaces, images, documents, progress, reminders, wallpaper, services, prompt library, added AIs. And the **archive of selected palaces** [*Archiver certains palais*], with no settings at all: re-importing it touches nothing else.
+- **Automatic backups** [*Sauvegardes automatiques*] — snapshots taken before every risky operation, restorable.
 
-> Les clés d'accès aux services ne sont **jamais** exportées.
+> Service access keys are **never** exported.
 
-## 11. Importer une grosse base
+## 11. Importing a large base
 
-Pendant un import, une fenêtre montre l'étape en cours, la progression et une estimation du temps restant. À la fin, un bilan situe la base : **confortable** sous 3 000 fiches, **chargée** jusqu'à 8 000, **lourde** au-delà. Ce sont des repères estimés, pas des limites : au-delà, tout fonctionne, plus lentement sur téléphone. Archivez alors les matières inactives.
+During an import, a window shows the current step, progress and an estimate of the time remaining. At the end, a summary places the base: **comfortable** under 3,000 cards, **loaded** up to 8,000, **heavy** beyond. These are estimated guidelines, not limits: beyond them everything works, more slowly on a phone. Archive inactive subjects at that point.
 
-## 12. Exporter pour les élèves
+## 12. Exporting for students
 
-Paramètres → Exporter et sauvegarder → **Exporter en lecture seule** :
+Settings → Export and back up → **Read-only export** [*Exporter en lecture seule*]:
 
-1. Dépliez **« Choisir les palais »** et cochez ceux à distribuer
-2. Vérifiez la **taille estimée** et l'indicateur de confort
-3. Choisissez un nom, ou une des propositions
-4. Cochez **« Réinitialiser les statistiques »** si le fichier est pour quelqu'un d'autre
-5. Générez
+1. Unfold **"Choose palaces"** [*Choisir les palais*] and tick those to distribute
+2. Check the **estimated size** and the comfort indicator
+3. Choose a name, or one of the suggestions
+4. Tick **"Reset review statistics"** [*Réinitialiser les statistiques*] if the file is for someone else
+5. Generate
 
-| Taille | Ce que ça donne |
+| Size | What to expect |
 |---|---|
-| moins de 8 Mo | Confortable partout |
-| 8 à 25 Mo | Ouverture un peu lente sur appareil ancien |
-| 25 à 60 Mo | Envoi par messagerie souvent refusé |
-| plus de 60 Mo | Risque de blocage sur téléphone |
+| under 8 MB | Comfortable everywhere |
+| 8 to 25 MB | Slightly slow to open on older devices |
+| 25 to 60 MB | Email attachment often refused |
+| over 60 MB | Risk of failure on a phone |
 
-**Après une correction, régénérez et redistribuez** : un fichier déjà distribué ne se met pas à jour tout seul.
+**After a correction, regenerate and redistribute**: a file already handed out does not update itself.
 
-## 13. Le fond d'écran
+## 13. Wallpaper
 
-Paramètres → Apparence → Fond d'écran, trois onglets : **Générer (IA)**, **Photo libre**, **Importer**. Un clic place une image en aperçu ; votre fond actuel reste en place jusqu'à **« Appliquer ce fond »**, et **« Revenir au fond précédent »** annule.
+Settings → Appearance → Wallpaper [*Apparence → Fond d'écran*], three tabs: **Generate (AI)**, **Free photo**, **Import**. A click places an image in preview; your current wallpaper stays until **"Apply this wallpaper"** [*Appliquer ce fond*], and **"Back to previous wallpaper"** [*Revenir au fond précédent*] undoes it.
 
-## 14. Paramètres, explications et glossaire
+## 14. Settings, explanations and glossary
 
-Les Paramètres sont rangés sous **cinq thèmes**, chacun avec sa couleur : créer et organiser le contenu, images et services en ligne, exporter et sauvegarder, apparence, avancé. Chaque section affiche **un résumé d'une ligne**, même repliée.
+Settings are organised under **five themes**, each with its colour: create and organise content, images and online services, export and back up, appearance, advanced. Each section shows **a one-line summary**, even when folded.
 
-**Les explications détaillées sont masquées** et s'ouvrent section par section avec le **« ? »**. Pour les afficher partout : Apparence → **« Toujours afficher les explications »**.
+**Detailed explanations are hidden** and open section by section with the **"?"**. To show them everywhere: Appearance → **"Always show explanations"** [*Toujours afficher les explications*].
 
-**Le Glossaire** — menu latéral — définit une quarantaine de termes en cinq familles, avec une recherche et, pour chaque mot, où le trouver.
+**The Glossary** [*Glossaire*] — side menu — defines about forty terms in five families, with a search and, for each word, where to find it.
 
 ---
 
-# Deuxième partie — Le fichier de lecture
+# Part two — The reader file
 
-*À transmettre aux élèves.*
+*Hand this section to students.*
 
-## Ouvrir
+## Opening it
 
-Double-cliquez sur le fichier. Il s'ouvre dans votre navigateur. **Aucune connexion nécessaire**, et rien n'est envoyé nulle part.
+Double-click the file. It opens in your browser. **No connection required**, and nothing is sent anywhere.
 
-Si un message dit que le fichier ne peut pas s'ouvrir ici, c'est qu'il est affiché dans un simple aperçu : ouvrez-le avec Firefox, Chrome ou Edge.
+If a message says the file cannot open here, it is being shown in a simple preview: open it in Firefox, Chrome or Edge.
 
-## Ce qu'on peut faire
+## What you can do
 
-**Parcourir** les palais, les salles et les fiches. **Réviser** : une question, vous cherchez, vous révélez, vous indiquez si vous saviez — la ligne au-dessus de la question rappelle toujours le palais et la salle. **Se programmer des rappels**. **Trier les palais**.
+**Browse** palaces, rooms and cards. **Review**: a question appears, you think, you reveal, you say whether you knew it — the line above the question always shows the palace and the room. **Schedule your own reminders**. **Sort palaces**.
 
-## Ce qu'on ne peut pas faire
+## What you cannot do
 
-Créer, modifier ou supprimer. Le contenu est celui que votre enseignant a validé.
+Create, edit or delete anything. The content is what your teacher approved.
 
-## Votre progression
+## Your progress
 
-Elle est enregistrée **dans votre navigateur, sur votre appareil**, et ne remonte à personne. Vous la retrouvez en rouvrant le fichier sur le même appareil et le même navigateur ; elle ne vous suit pas sur un autre poste.
+It is saved **in your browser, on your device**, and reported to no one. You pick up where you left off on the same device and browser; it does not follow you to another computer.
 
-Si le navigateur refuse tout enregistrement, un bandeau vous prévient **avant** que vous ne révisiez pour rien.
+If the browser refuses all storage, a banner warns you **before** you review for nothing.
 
 ---
 
-# Troisième partie — Référence technique
+# Part three — Technical reference
 
-## Formats acceptés
+## Accepted formats
 
-| Usage | Formats |
+| Use | Formats |
 |---|---|
-| Import de contenu | `.xlsx`, `.ods`, `.csv` (virgules ou points-virgules), `.json`, `.zip` |
+| Content import | `.xlsx`, `.ods`, `.csv` (commas or semicolons), `.json`, `.zip` |
 | Images | `.jpg`, `.png`, `.webp`, `.gif` |
-| Documents joints | `.pdf`, `.docx`, `.doc`, `.odt`, `.xlsx`, `.xls`, `.ods`, `.csv`, `.rtf`, `.txt` |
+| Attached documents | `.pdf`, `.docx`, `.doc`, `.odt`, `.xlsx`, `.xls`, `.ods`, `.csv`, `.rtf`, `.txt` |
 
-## Limites
+## Limits
 
-- **Document joint** : avertissement au-delà de 2 Mo, refus au-delà de 12 Mo
-- **Images** : redimensionnées à 640 px ; fond d'écran à 1600 px
-- **Fichier de lecture** : au-delà de 25 Mo, envoi par messagerie souvent refusé
+- **Attached document**: warning above 2 MB, refused above 12 MB
+- **Images**: resized to 640 px; wallpaper to 1600 px
+- **Reader file**: above 25 MB, email attachment is often refused
 
-## Où sont les données
+## Where the data lives
 
-Dans le stockage du navigateur, **par adresse** et non par fichier : deux copies de l'application ouvertes depuis la même adresse partagent la même base. Les données survivent à la fermeture, mais pas à un effacement des données du navigateur ni à un changement d'appareil.
+In the browser's storage, **per address** and not per file: two copies of the application opened from the same address share the same base. Data survives closing the browser, but not clearing browser data or changing device.
 
-**Exportez régulièrement.** C'est la seule vraie sauvegarde.
+**Export regularly.** That is the only real backup.
 
-## Services d'images
+## Image services
 
-- **Pollinations** — génération par IA. Délai imposé par le service gratuit : environ **16 secondes** pour une image, **23 par image en lot**. Avec une clé : 6 et 9 secondes.
-- **Photos libres** — Openverse, Wikimedia Commons, et d'autres services à déclarer dans Paramètres → Images et services en ligne → Clés d'accès aux services.
+- **Pollinations** — AI generation. Delay imposed by the free service: about **16 seconds** for one image, **23 per image in a batch**. With a key: 6 and 9 seconds.
+- **Free photos** — Openverse, Wikimedia Commons, and other services you can declare in Settings → Images and online services → Service access keys [*Clés d'accès aux services*].
 
-## En cas de problème
+## Troubleshooting
 
-| Symptôme | À vérifier |
+| Symptom | What to check |
 |---|---|
-| Bandeau « Stockage réduit dans ce navigateur » | Chrome ou Edge sur un fichier local : ouvrez-le avec Firefox, ou depuis une adresse web |
-| Message « ne peut pas s'ouvrir ici » | Le fichier est affiché dans un aperçu : ouvrez-le dans Firefox, Chrome ou Edge |
-| Le fichier élève n'affiche rien | Il vient d'une version ancienne : régénérez-le |
-| La génération d'image échoue | Un VPN est souvent bloqué par le service, de même qu'une clé dont le compte est épuisé |
-| Des favoris jamais posés | Ils viennent du tableur importé : retrait en masse dans Paramètres → Favoris |
-| L'application est lente sur téléphone | Voir le bilan de volume : archivez les matières inactives |
-| Une suppression regrettée | Le bandeau d'annulation (douze secondes), sinon un instantané |
+| "Reduced storage in this browser" banner [*Stockage réduit dans ce navigateur*] | Chrome or Edge on a local file: open it in Firefox, or from a web address |
+| "Cannot open here" message | The file is shown in a preview: open it in Firefox, Chrome or Edge |
+| The reader file shows nothing | It comes from an old version: regenerate it |
+| Image generation fails | VPNs are often blocked by the service, as is a key whose account has run out of credits |
+| Favourites you never set | They came from the imported spreadsheet: bulk removal in Settings → Favourites |
+| The application is slow on a phone | See the volume summary: archive inactive subjects |
+| A deletion you regret | The undo banner (twelve seconds), otherwise a snapshot |
 
-## Limites connues
+## Known limitations
 
-- **iPad et iPhone** : non pris en charge.
-- **Chrome et Edge sur un fichier local** : capacité de stockage réduite, voir « Plateformes et navigateurs ».
-- **SheetJS 0.18.5**, intégré pour lire les tableurs, présente des failles connues à l'import de fichiers piégés. N'importez pas de tableur d'origine inconnue.
+- **iPad and iPhone**: not supported.
+- **Chrome and Edge on a local file**: reduced storage capacity, see "Platforms and browsers".
+- **SheetJS 0.18.5**, embedded to read spreadsheets, has known vulnerabilities when importing crafted files. Do not import spreadsheets of unknown origin.
 
-## Ressources fournies avec le projet
+## Resources supplied with the project
 
-| Fichier | Contenu |
+| File | Content |
 |---|---|
-| `TUTORIELS.md` | Six parcours pas à pas, de la voie express à la sauvegarde |
-| `GUIDE-ELEVE.md` | Une page pour les élèves, à imprimer ou joindre |
-| `PROMPT-UNIVERSEL.md` | Le prompt à copier pour faire remplir un tableur par une IA |
-| `Palais-Mental-Prompts` (`.xlsx`, `.ods`) | 24 prompts prêts par domaine, et un questionnaire |
-| `Palais-Mental-Schemas.drawio` | Cinq schémas modifiables dans draw.io |
+| `TUTORIELS.md` | Six step-by-step walkthroughs, from the express route to backups (in French) |
+| `GUIDE-ELEVE.md` | A one-page guide for students, to print or attach (in French) |
+| `PROMPT-UNIVERSEL.md` | The prompt to copy to have an AI fill in a spreadsheet (in French) |
+| `Palais-Mental-Prompts` (`.xlsx`, `.ods`) | 24 ready-made prompts by domain, and a questionnaire |
+| `Palais-Mental-Schemas.drawio` | Five diagrams, editable in draw.io |
 
-## Bibliothèques tierces
+## Third-party libraries
 
-Intégrées au fichier, sous leurs licences respectives :
+Embedded in the file, under their respective licences:
 
-| Bibliothèque | Version | Licence |
+| Library | Version | Licence |
 |---|---|---|
 | Vue | 3.4 | MIT |
 | SheetJS | 0.18.5 | Apache-2.0 |
 | PapaParse | 5.3.0 | MIT |
-| JSZip | 3.10.1 | MIT ou GPLv3, au choix |
+| JSZip | 3.10.1 | MIT or GPLv3, at your choice |
 
 ## Licence
 
-Voir le fichier `LICENSE`.
+See the `LICENSE` file.
