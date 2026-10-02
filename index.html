@@ -1662,6 +1662,17 @@
   .glo-terme dd{margin:0; font-size:14px; line-height:1.5;}
   .glo-ou{display:block; margin-top:3px; font-size:12.5px; color:var(--text-dim);}
   @media (max-width:900px){ .glo-vue{padding-bottom:96px;} }
+
+  /* Fiche modifiée, non enregistrée */
+  .fiche-non-enregistree{align-self:center; margin-right:6px; padding:3px 9px; border-radius:999px; font-size:12px; font-weight:600;
+    color:#a5541b; background:rgba(192,119,43,.14); border:1px solid rgba(192,119,43,.35);}
+  /* IA sans compte, modification des IA ajoutées */
+  .gen-sans-compte{display:inline-block; margin-left:6px; padding:1px 6px; border-radius:999px; font-size:10.5px; font-weight:600;
+    font-style:normal; letter-spacing:.02em; color:#2f7d4c; background:rgba(63,143,90,.14); vertical-align:middle;}
+  .gen-case-sans-compte{display:inline-flex; align-items:center; gap:6px; margin-top:8px; font-size:13px; cursor:pointer;}
+  .gen-ias-perso li.en-edition{flex-direction:column; align-items:stretch; padding:8px; border-radius:8px; background:var(--bg-elevated);}
+  .gen-edition-actions{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .gen-edition-actions .gen-case-sans-compte{margin:0 auto 0 0;}
 </style>
 </head>
 <body>
@@ -2686,8 +2697,9 @@
                 <button type="button" class="gen-gerer" @click="genGererIas = !genGererIas" :aria-expanded="genGererIas ? 'true' : 'false'">{{ genGererIas ? 'Fermer' : '+ Ajouter une IA' }}</button>
               </div>
               <div class="gen-ias">
-                <button v-for="ia in iasProposees" :key="ia.url" class="gen-ia" :class="{perso: ia.perso}" @click="ouvrirIA(ia.url)">{{ ia.nom }}</button>
+                <button v-for="ia in iasProposees" :key="ia.url" class="gen-ia" :class="{perso: ia.perso}" @click="ouvrirIA(ia.url)">{{ ia.nom }}<span v-if="ia.sansCompte" class="gen-sans-compte">sans compte</span></button>
               </div>
+              <p class="gen-aide-courte">« Sans compte » : utilisable sans se connecter, avec un nombre de messages limité — pratique pour une démonstration.</p>
               <div v-if="genGererIas" class="gen-gestion-ias">
                 <p class="stock-hint">Collez l'adresse de n'importe quelle IA en ligne. Elle s'ajoutera aux boutons, sur cet appareil et dans vos sauvegardes.</p>
                 <div class="gen-ajout-ia">
@@ -2695,10 +2707,27 @@
                   <input type="url" v-model="iaUrl" placeholder="https://…" aria-label="Adresse de l'IA" @keyup.enter="ajouterIaPerso">
                   <button class="btn small" @click="ajouterIaPerso">Ajouter</button>
                 </div>
+                <label class="gen-case-sans-compte"><input type="checkbox" v-model="iaSansCompte"> Utilisable sans compte</label>
                 <ul v-if="iasPerso.length" class="gen-ias-perso">
-                  <li v-for="ia in iasPerso" :key="ia.id">
-                    <strong>{{ ia.nom }}</strong><span>{{ ia.url }}</span>
-                    <button class="btn ghost small gen-suppr" @click="retirerIaPerso(ia.id)">Retirer</button>
+                  <li v-for="ia in iasPerso" :key="ia.id" :class="{ 'en-edition': iaEditionId === ia.id }">
+                    <template v-if="iaEditionId === ia.id">
+                      <div class="gen-ajout-ia">
+                        <input type="text" v-model="iaEditionNom" aria-label="Nouveau nom de l'IA" maxlength="30" @keyup.enter="validerEditionIa">
+                        <input type="url" v-model="iaEditionUrl" aria-label="Nouvelle adresse de l'IA" @keyup.enter="validerEditionIa">
+                        <span></span>
+                      </div>
+                      <div class="gen-edition-actions">
+                        <label class="gen-case-sans-compte"><input type="checkbox" v-model="iaEditionSansCompte"> Utilisable sans compte</label>
+                        <button class="btn ghost small" @click="annulerEditionIa">Annuler</button>
+                        <button class="btn small primary" @click="validerEditionIa">Enregistrer</button>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <strong>{{ ia.nom }}</strong><span>{{ ia.url }}</span>
+                      <em v-if="ia.sansCompte" class="gen-sans-compte">sans compte</em>
+                      <button class="btn ghost small" @click="commencerEditionIa(ia)">Modifier</button>
+                      <button class="btn ghost small gen-suppr" @click="retirerIaPerso(ia.id)">Retirer</button>
+                    </template>
                   </li>
                 </ul>
               </div>
@@ -3555,7 +3584,8 @@
         </div>
         <div class="detail-foot">
           <button class="btn ghost" @click="closeDetail">Annuler</button>
-          <button class="btn primary" @click="saveObjet" :disabled="!detailObjet.contenu.trim()">Enregistrer l'objet</button>
+          <span v-if="ficheModifiee" class="fiche-non-enregistree" role="status">Non enregistré</span>
+            <button class="btn primary" @click="saveObjet" :disabled="!detailObjet.contenu.trim()">Enregistrer l'objet</button>
         </div>
       </template>
     </div>
@@ -5377,7 +5407,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
     return "telecharge";
   }
-  var APP_VERSION = "7.2";
+  var APP_VERSION = "7.3";
   /* Instantanés de sauvegarde : uniquement le TEXTE (les images sont déjà stockées à part et
      pèseraient trop pour être dupliquées). Filet contre les fausses manœuvres, pas un
      remplacement de l'export complet. */
@@ -5465,9 +5495,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     "Polonais","Portugais","Roumain","Russe","Serbe, croate ou bosniaque","Soninké","Swahili","Tamazight (berbère)","Tamoul",
     "Tchétchène","Tigrigna","Turc","Ukrainien","Vietnamien","Wolof"];
   var GEN_NIVEAUX_FLS = [["A1","A1 — découverte"],["A2","A2 — survie"],["B1","B1 — seuil"]];
+  /* Troisième valeur : utilisable sans compte, avec un nombre de messages limité (vérifié en
+     octobre 2026 — ces conditions changent souvent). Le Chat n'est pas marqué : les sources
+     divergent sur la nécessité d'un compte. */
   var GEN_IAS = [
-    ["ChatGPT","https://chatgpt.com/"], ["Claude","https://claude.ai/new"], ["Gemini","https://gemini.google.com/app"],
-    ["Le Chat (Mistral)","https://chat.mistral.ai/chat"], ["DeepSeek","https://chat.deepseek.com/"], ["Copilot","https://copilot.microsoft.com/"]
+    ["Duck.ai","https://duck.ai/", true], ["ChatGPT","https://chatgpt.com/", true],
+    ["Copilot","https://copilot.microsoft.com/", true], ["Perplexity","https://www.perplexity.ai/", true],
+    ["Claude","https://claude.ai/new", false], ["Gemini","https://gemini.google.com/app", false],
+    ["Le Chat (Mistral)","https://chat.mistral.ai/chat", false], ["DeepSeek","https://chat.deepseek.com/", false]
   ];
   function genParDefaut(){
     return { niveau: "guide", sujet: "", public: "college-3e", precision: "", volume: "120", langue: "français",
@@ -5995,7 +6030,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         jourSelectionne: null,
         sessionReprise: null,
         sessionsSauvees: [],
-        pileVues: [], gloRecherche: "", GLOSSAIRE: GLOSSAIRE, recapImport: null, iasPerso: [], genGererIas: false, iaNom: "", iaUrl: "",
+        detailOrigine: "", pileVues: [], gloRecherche: "", GLOSSAIRE: GLOSSAIRE, recapImport: null, iasPerso: [], genGererIas: false, iaNom: "", iaUrl: "", iaSansCompte: false, iaEditionId: null, iaEditionNom: "", iaEditionUrl: "", iaEditionSansCompte: false,
         gen: genParDefaut(), genNomSauvegarde: "", genRenommage: null, genRenommageNom: "", genOuvert: null,
         GEN_PUBLICS: GEN_PUBLICS, GEN_TYPES: GEN_TYPES, GEN_DYS: GEN_DYS, GEN_LANGUES: GEN_LANGUES,
         GEN_NIVEAUX_FLS: GEN_NIVEAUX_FLS, GEN_IAS: GEN_IAS,
@@ -6277,6 +6312,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         return n;
       },
       promptGenere(){ return construirePrompt(this.gen); },
+      ficheModifiee(){ return !!(this.detailOpen && this.detailOrigine && this.signatureFiche(this.detailObjet) !== this.detailOrigine); },
       resumeTris(){
         var P = { "default": "dans l'ordre par défaut", alpha: "par ordre alphabétique", date: "les plus récents d'abord", taille: "les plus grands d'abord" };
         var S = { ordre: "dans l'ordre du parcours", alpha: "par ordre alphabétique", date: "les plus récentes d'abord", taille: "les plus fournies d'abord" };
@@ -6291,8 +6327,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         }).filter(function(g){ return g.termes.length; });
       },
       iasProposees(){
-        return GEN_IAS.map(function(x){ return { nom: x[0], url: x[1], perso: false }; })
-          .concat(this.iasPerso.map(function(x){ return { id: x.id, nom: x.nom, url: x.url, perso: true }; }));
+        return GEN_IAS.map(function(x){ return { nom: x[0], url: x[1], sansCompte: !!x[2], perso: false }; })
+          .concat(this.iasPerso.map(function(x){ return { id: x.id, nom: x.nom, url: x.url, sansCompte: !!x.sansCompte, perso: true }; }));
       },
       promptsRanges(){
         // Les prompts générés d'abord, du plus récent au plus ancien ; les anciens modèles ensuite.
@@ -7869,6 +7905,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         this.detailParentPalaceId = palace.id;
         this.detailParentSalleId = salle.id;
         this.detailObjet = emptyObjet(salle.objets.length);
+        this.detailOrigine = this.signatureFiche(this.detailObjet);
         this.tagDraft = "";
         this.defQuery = "";
         this.previewUrl = "";
@@ -7887,6 +7924,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         this.detailObjet = JSON.parse(JSON.stringify(objet));
         if (this.detailObjet.promptAuto === undefined) this.detailObjet.promptAuto = false;
         if (this.detailObjet.imageCredit === undefined) this.detailObjet.imageCredit = null;
+        this.detailOrigine = this.signatureFiche(this.detailObjet);
         this.tagDraft = "";
         this.defQuery = "";
         this.previewUrl = "";
@@ -7902,7 +7940,20 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         }
         this.detailOpen = true;
       },
-      closeDetail(){
+      /* Une fiche modifiée ne se ferme plus sans prévenir : l'image choisie n'était placée que sur
+         la copie de travail, et la fermer par la croix, Échap ou le bouton Retour la jetait sans
+         un mot — alors que le message affiché disait « Image enregistrée ». */
+      /* Ce que l'utilisateur a pu changer. Le prompt automatique est recalculé dès l'ouverture :
+         l'inclure ferait croire à une modification sur chaque fiche simplement consultée. */
+      signatureFiche(o){
+        var copie = Object.assign({}, o);
+        if (copie.promptAuto !== false) delete copie.prompt;
+        return JSON.stringify(copie);
+      },
+      closeDetail(force){
+        if (force !== true && this.ficheModifiee &&
+            !window.confirm("Fermer sans enregistrer ?\n\nLes modifications de cette fiche, image comprise, seront perdues.")) return;
+        this.detailOrigine = "";
         this.detailOpen = false;
         /* Retour au parcours, exactement à la carte quittée : sans cela, ouvrir une fiche pour
            corriger une faute faisait perdre sa place dans une traversée de 200 objets. */
@@ -8368,10 +8419,26 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (!nom) { this.showToast("Donnez un nom à cette IA.", "erreur"); return; }
         if (!url) { this.showToast("Adresse invalide : elle doit commencer par https://", "erreur"); return; }
         if (this.iasProposees.some(function(x){ return x.url === url; })) { this.showToast("Cette adresse est déjà dans la liste.", "erreur"); return; }
-        this.iasPerso.push({ id: uuid(), nom: nom, url: url });
+        this.iasPerso.push({ id: uuid(), nom: nom, url: url, sansCompte: !!this.iaSansCompte });
         Store.set("pm:iasPerso", JSON.parse(JSON.stringify(this.iasPerso)));
-        this.iaNom = ""; this.iaUrl = "";
+        this.iaNom = ""; this.iaUrl = ""; this.iaSansCompte = false;
         this.showToast("« " + nom + " » ajoutée aux IA proposées.", "ok");
+      },
+      commencerEditionIa(ia){
+        this.iaEditionId = ia.id; this.iaEditionNom = ia.nom; this.iaEditionUrl = ia.url; this.iaEditionSansCompte = !!ia.sansCompte;
+      },
+      annulerEditionIa(){ this.iaEditionId = null; },
+      validerEditionIa(){
+        var id = this.iaEditionId, nom = this.iaEditionNom.trim().slice(0, 30), url = this.urlIaValide(this.iaEditionUrl);
+        if (!nom) { this.showToast("Donnez un nom à cette IA.", "erreur"); return; }
+        if (!url) { this.showToast("Adresse invalide : elle doit commencer par https://", "erreur"); return; }
+        if (this.iasProposees.some(function(x){ return x.url === url && x.id !== id; })) { this.showToast("Cette adresse est déjà dans la liste.", "erreur"); return; }
+        var ia = this.iasPerso.find(function(x){ return x.id === id; });
+        if (!ia) { this.iaEditionId = null; return; }
+        ia.nom = nom; ia.url = url; ia.sansCompte = !!this.iaEditionSansCompte;
+        Store.set("pm:iasPerso", JSON.parse(JSON.stringify(this.iasPerso)));
+        this.iaEditionId = null;
+        this.showToast("« " + nom + " » modifiée.", "ok");
       },
       retirerIaPerso(id){
         this.iasPerso = this.iasPerso.filter(function(x){ return x.id !== id; });
@@ -8504,7 +8571,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
            repointe sur l'objet fraîchement enregistré. */
         this.rafraichirFiles(this.detailObjet);
         this.showToast("Objet enregistré.", "ok");
-        this.closeDetail();
+        this.closeDetail(true);
       },
       async toggleFavori(palace, objet){
         objet.favori = !objet.favori;
@@ -8587,7 +8654,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           this.detailObjet.model = model;
           this.detailObjet.imageCredit = null;
           if (!entry) this.previewUrl = "";
-          this.showToast("Image enregistrée.", "ok");
+          this.showToast("Image placée sur la fiche : cliquez sur « Enregistrer l'objet » pour la garder.", "ok");
         } catch(e){
           console.error(e);
           this.showToast("Impossible d'enregistrer cette image (connexion, lien expiré ou restriction du service).", "erreur");
@@ -8757,7 +8824,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             title: result.title || "",
             landingUrl: result.foreign_landing_url || ""
           };
-          if (!silent) this.showToast("Photo ajoutée.", "ok");
+          if (!silent) this.showToast("Photo placée sur la fiche : cliquez sur « Enregistrer l'objet » pour la garder.", "ok");
           return true;
         } catch(e){
           console.error(e);
@@ -8779,7 +8846,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           this.detailObjet.seed = null;
           this.detailObjet.model = "";
           this.detailObjet.imageCredit = { creator: "Import local", source: file.name, license: "", title: "", landingUrl: "" };
-          this.showToast("Image importée.", "ok");
+          this.showToast("Image placée sur la fiche : cliquez sur « Enregistrer l'objet » pour la garder.", "ok");
         } catch(e){
           console.error(e);
           this.showToast("Impossible de lire ce fichier. Vérifiez qu'il s'agit bien d'une image.", "erreur");
