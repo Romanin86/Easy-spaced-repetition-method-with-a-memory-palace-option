@@ -1845,6 +1845,13 @@
   .icon-btn.btn-parametres{width:auto; min-width:40px; padding:0 12px; gap:7px; border:1px solid var(--border); border-radius:10px; background:var(--bg-elevated);}
   .btn-parametres .param-libelle{font-size:13.5px; font-weight:600; color:var(--text);}
   @media (max-width:700px){ .btn-parametres .param-libelle{display:none;} .icon-btn.btn-parametres{padding:0 8px;} }
+
+  .gen-philo-choix.histoire .gen-experimental{color:#c0772b; background:rgba(192,119,43,.14);}
+
+  /* Fenêtre « Nouveau palais » : les choix en grille, un par ligne sur téléphone */
+  .modal.creation-palais{max-width:560px;}
+  .creation-palais .bienvenue-choix{margin:10px 0 4px;}
+  .gen-express-note{padding:6px 10px; border-radius:8px; background:var(--bg); border:1px dashed var(--border);}
 </style>
 </head>
 <body>
@@ -2013,7 +2020,7 @@
           </div>
         </div>
       </div>
-      <button class="new-palace-btn" @click="openPalaceModal(null)">
+      <button class="new-palace-btn" @click="ouvrirCreationPalais">
         <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px;"><path d="M12 5v14M5 12h14"/></svg>
         Nouveau palais
       </button>
@@ -2103,7 +2110,7 @@
               <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px;"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
               <span class="lbl-long">Sélectionner</span><span class="lbl-court">Choisir</span>
             </button>
-            <button class="btn primary" @click="openPalaceModal(null)">
+            <button class="btn primary" @click="ouvrirCreationPalais">
               <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px;"><path d="M12 5v14M5 12h14"/></svg>
               Nouveau palais
             </button>
@@ -2715,7 +2722,7 @@
         <div class="gen-philo-titre">Votre approche <button type="button" class="aide-btn" @click.stop="basculerAideSection($event)" aria-expanded="false" aria-label="Afficher l'explication" data-info="Afficher ou masquer l'explication">?</button></div>
         <p class="sub explication gen-philo-explication">Deux façons de construire un palais. « Mémoriser » produit des fiches courtes et indépendantes, idéales pour ce qui s'apprend tel quel. « Comprendre pour retenir » produit une suite de questions qui s'expliquent les unes par les autres : ce qui est compris se retient mieux, et il reste moins à apprendre par cœur. Le niveau — express, guidé, expert — règle ensuite le nombre d'options.</p>
         <div class="gen-philo" role="radiogroup" aria-label="Approche du prompt">
-          <button type="button" role="radio" class="gen-philo-choix memoriser" :class="{actif: gen.philosophie !== 'comprendre'}" :aria-checked="gen.philosophie !== 'comprendre' ? 'true' : 'false'" @click="gen.philosophie = 'memoriser'">
+          <button type="button" role="radio" class="gen-philo-choix memoriser" :class="{actif: (gen.philosophie || 'memoriser') === 'memoriser'}" :aria-checked="(gen.philosophie || 'memoriser') === 'memoriser' ? 'true' : 'false'" @click="gen.philosophie = 'memoriser'">
             <strong>Mémoriser</strong>
             <span>Des faits précis et indépendants : vocabulaire, dates, définitions, formules.</span>
             <small>Fiches courtes · la méthode éprouvée de l'application</small>
@@ -2785,8 +2792,10 @@
                   </select>
                 </div>
               </div>
+              <p v-if="gen.niveau === 'express' && gen.philosophie === 'comprendre'" class="gen-aide-courte gen-express-note">En Express, l'IA pose les questions de base : {{ questionsExpress }}. Passez en « Guidé » pour les choisir.</p>
+              <p v-if="gen.niveau === 'express' && gen.philosophie === 'histoire'" class="gen-aide-courte gen-express-note">En Express, l'IA choisit le genre, le héros et les lieux. Passez en « Guidé » pour les imposer.</p>
               <p v-if="gen.philosophie === 'comprendre'" class="gen-aide-courte">Les explications sont plus longues que des faits : avec une IA gratuite, restez à 50 ou 80 fiches.</p>
-              <p v-else-if="gen.philosophie === 'histoire'" class="gen-aide-courte">Une histoire coûte des mots : avec une IA gratuite, restez à 50 fiches.</p>
+              <p v-else-if="gen.philosophie === 'histoire'" class="gen-aide-courte">Une histoire coûte des mots : avec une IA gratuite, restez à 50 fiches, ou moins.</p>
               <p class="stock-hint explication">Avec une IA gratuite, restez à 120 au plus : au-delà, la réponse est souvent coupée. Demandez ensuite la suite à l'IA, avec le même nom de palais : l'import fusionne les fichiers.</p>
               <div class="field" v-if="gen.niveau !== 'express'">
                 <label for="gen-precision">Précision sur le public <span class="gen-facultatif">facultatif</span></label>
@@ -3203,7 +3212,7 @@
             </div>
           </div>
 
-          <input :key="spreadsheetInputKey" ref="spreadsheetInput" type="file" accept=".xlsx,.csv,.ods" style="display:none;" @change="handleSpreadsheetImport">
+          
         </div>
 
         <div class="settings-block grp-1">
@@ -4530,6 +4539,26 @@
       </div>
     </div>
 
+    <!-- Champ de fichier de l'import tableur : global, et non dans la page des Paramètres.
+         Il n'existait que lorsque les Paramètres étaient affichés : ailleurs — générateur, accueil,
+         « Nouveau palais » — le bouton d'import échouait en silence. -->
+    <input :key="spreadsheetInputKey" ref="spreadsheetInput" type="file" accept=".xlsx,.csv,.ods" style="display:none;" @change="handleSpreadsheetImport">
+
+    <!-- Nouveau palais : les mêmes choix qu'au premier lancement, à chaque création -->
+    <div v-if="creationOuverte" class="modal-scrim" @click.self="creationOuverte = false">
+      <div class="modal creation-palais" role="dialog" aria-labelledby="cp-titre">
+        <h3 id="cp-titre">Nouveau palais</h3>
+        <p class="gen-aide-courte">Comment voulez-vous le remplir ?</p>
+        <div class="bienvenue-choix">
+          <button type="button" class="bienvenue-porte" @click="choixCreation('ia')"><strong>Créer avec une IA</strong><span>Décrivez le sujet : l'application rédige la demande, une IA prépare les fiches.</span></button>
+          <button type="button" class="bienvenue-porte" @click="choixCreation('import')"><strong>Importer un tableur</strong><span>Un fichier Excel, ODS ou CSV déjà rempli.</span></button>
+          <button type="button" class="bienvenue-porte" @click="choixCreation('main')"><strong>Créer à la main</strong><span>Un palais vide, à remplir fiche par fiche.</span></button>
+          <button v-if="!palaisExempleExiste" type="button" class="bienvenue-porte" @click="choixCreation('exemple')"><strong>Palais d'exemple</strong><span>Un petit palais qui fait découvrir l'application en s'en servant.</span></button>
+        </div>
+        <div class="modal-actions"><button class="btn ghost" @click="creationOuverte = false">Annuler</button></div>
+      </div>
+    </div>
+
     <!-- Bilan d'import : l'import est terminé, les images sont une option -->
     <div v-if="recapImport" class="modal-scrim" @click.self="fermerRecapImport">
       <div class="modal recap-import" role="dialog" aria-labelledby="recap-titre">
@@ -5790,7 +5819,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
     return "telecharge";
   }
-  var APP_VERSION = "7.9";
+  var APP_VERSION = "8.2";
   /* Instantanés de sauvegarde : uniquement le TEXTE (les images sont déjà stockées à part et
      pèseraient trop pour être dupliquées). Filet contre les fausses manœuvres, pas un
      remplacement de l'export complet. */
@@ -6048,7 +6077,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     p("• image : laisse toujours vide.");
     p("");
     var base = (opts && Array.isArray(opts.questions) && opts.questions.length) ? opts.questions : GEN_QUESTIONS;
-    var qs = base.filter(function(q){ return (g.questions || []).indexOf(q[0]) !== -1; });
+    // En Express, le choix des types n'est pas affiché : il ne doit donc pas agir en coulisse.
+    // On s'en tient aux types de base, avec les textes éventuellement modifiés par l'utilisateur.
+    var choisis = guide ? (g.questions || []) : genParDefaut().questions;
+    var qs = base.filter(function(q){ return choisis.indexOf(q[0]) !== -1; });
     if (!qs.length) qs = base;
     p("LES QUESTIONS À POSER");
     p("Les exemples viennent d'autres matières : ils montrent la forme d'une question, pas le contenu attendu.");
@@ -6096,58 +6128,85 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var n = 0, r = function(t){ n++; p(n + ". " + t); };
     var langue = g.langueEtrangere && guide, cible = String(g.langueCible || "anglais").trim() || "anglais";
     var dansCible = langue && g.narration === "cible";
-    p("Tu vas préparer une base de révision pour l'application Palais Mental, un outil de mémorisation par répétition espacée. Lis toutes les consignes avant de commencer. Je joins un fichier modèle vide : respecte exactement ses colonnes.");
+    var passage = g.longueurPassage === "courte" ? "une ou deux phrases" : "deux ou trois phrases au plus";
+    // Les lignes d'exemple suivent les réglages : sans images, leur colonne prompt est vide, comme le dit la consigne.
+    var ex = function(l){ if (g.images) return l; var col = l.split(";"); col[5] = ""; return col.join(";"); };
+    p("Tu vas écrire une histoire qui sert à apprendre, puis la livrer sous forme de tableau pour l'application Palais Mental, un outil de mémorisation par répétition espacée. Lis toutes les consignes avant de commencer. Je joins un fichier modèle vide : respecte exactement ses colonnes.");
     p("");
-    p("APPROCHE : RACONTER UNE HISTOIRE");
-    p("Le palais devient le décor d'une histoire. Chaque salle est un lieu que traverse le héros ; chaque fiche est un moment de l'histoire qui lui fait rencontrer une chose à apprendre. On retient bien mieux ce qui arrive à quelqu'un, dans un lieu précis, avec une émotion : c'est le principe même du palais mental.");
+    p("CE QUE JE VEUX : UNE VRAIE HISTOIRE");
+    p("Pas une liste de questions : une histoire suivie, avec un héros, un but, des obstacles, des rebondissements et une fin. Le héros traverse plusieurs lieux ; dans chaque lieu, il vit des moments qui lui font rencontrer, une par une, les choses à apprendre. Lus dans l'ordre, les passages du tableau racontent l'histoire du début à la fin.");
+    p("On retient bien mieux ce qui arrive à quelqu'un, dans un lieu précis, avec une émotion : c'est le principe même du palais mental.");
     p("");
     p("MON SUJET");
     p("Sujet : " + g.sujet.trim());
     p("Public : " + libelleDe(GEN_PUBLICS, g.public) + (String(g.precision || "").trim() ? " — " + g.precision.trim() : ""));
-    p("Volume : environ " + g.volume + " lignes, réparties entre les chapitres.");
+    p("Volume : environ " + g.volume + " lignes, réparties entre les lieux.");
     if (langue) p("Langue apprise : " + cible + "." + (dansCible ? " Niveau des élèves : " + (g.niveauCible || "A2") + "." : ""));
     else p("Langue du contenu : " + (g.langue || "français") + ".");
     if (guide){
       p("Titre de l'histoire, qui sera le nom du palais : " + (String(g.palais || "").trim() || "à toi de le proposer, court et intrigant") + ".");
       p("Lieux, dans l'ordre de l'histoire : " + (String(g.salles || "").trim() ? g.salles.trim().replace(/\s*\n\s*/g, " · ") : "à toi de les choisir, 5 à 8 lieux précis et faciles à imaginer") + ".");
     }
-    p("Genre : " + libelleDe(GEN_GENRES, g.genre || "aventure").toLowerCase() + ".");
+    p("Genre : " + (guide ? libelleDe(GEN_GENRES, g.genre || "aventure").toLowerCase() : "à toi de choisir celui qui sert le mieux le sujet") + ".");
     p("Héros : " + (guide && String(g.heros || "").trim() ? g.heros.trim() : "à toi de l'inventer, proche de l'âge et du quotidien du public") + ".");
     if (expert && String(g.reference || "").trim()) p("Référence à suivre : " + g.reference.trim() + ".");
     if (expert && String(g.exclure || "").trim()) p("À éviter ou à privilégier : " + g.exclure.trim() + ".");
     p("");
-    p("L'HISTOIRE — le plus important");
-    r("Les salles sont les chapitres de l'histoire : chacune est un lieu précis que traverse le héros, dans l'ordre. Nomme-les « 1. La gare », « 2. Le marché »… pour que l'ordre se lise.");
-    r("Lues dans l'ordre, les lignes racontent l'histoire du début à la fin. L'ordre des lignes fait partie du contenu.");
-    r("Une ligne = un moment de l'histoire, qui fait rencontrer UNE seule chose à apprendre, mise en situation de façon à en éclairer le sens.");
-    r("Une vraie histoire : un but, des obstacles, des rebondissements, une fin. Des personnages qui reviennent, des détails qu'on voit, qu'on entend, qu'on sent, un peu d'émotion ou d'humour : c'est ce qui rend une scène mémorable.");
+    p("COMMENT PROCÉDER — deux étapes, dans cet ordre");
+    p("ÉTAPE 1 — LE PLAN. Commence ta réponse par le plan de l'histoire, en 5 à 8 lignes : une ligne par lieu, qui dit ce qui arrive au héros et ce qu'il y rencontre. Vérifie qu'il y a une vraie intrigue : un but, des obstacles, une fin.");
+    p("ÉTAPE 2 — LE TABLEAU. Raconte ce plan, moment par moment : une ligne = un moment de l'histoire, dans l'ordre, qui fait rencontrer UNE seule chose à apprendre. Le tableau, c'est l'histoire découpée en moments, pas une liste de questions.");
+    p("");
+    p("L'HISTOIRE");
+    r("Les salles sont les lieux de l'histoire, dans l'ordre. Nomme-les « 1. La gare », « 2. Le marché »… pour que l'ordre se lise.");
+    r("Les lignes se suivent : chaque passage reprend là où le précédent s'est arrêté. L'ordre des lignes fait partie du contenu.");
+    r("Des personnages qui reviennent, des détails qu'on voit, qu'on entend, qu'on sent, un peu d'émotion ou d'humour : c'est ce qui rend une scène mémorable.");
     r("Réemploie plus loin ce qui a déjà été rencontré : revoir une chose dans une nouvelle scène, c'est ce qui la fixe.");
     p("");
     p("FORMAT — impératif");
     p("Neuf colonnes, dans cet ordre, en première ligne : palais | salle | objet | contenu | mnemo | prompt | tags | favori | image");
     p("• palais : le titre de l'histoire, identique sur toutes les lignes.");
-    p("• salle : le chapitre, nommé d'après son lieu et numéroté.");
-    var passage = g.longueurPassage === "courte" ? "une ou deux phrases" : "deux ou trois phrases au plus";
+    p("• salle : le lieu, numéroté.");
     if (langue){
-      p("• objet : CE QU'IL FAUT RETROUVER, en français : le sens du mot ou de l'expression, avec, si besoin, le moment de la scène entre parenthèses. Jamais la réponse dedans.");
-      p("• contenu : le mot ou l'expression en " + cible + ", exactement comme il faut le retenir — rien d'autre.");
+      p("• objet : le sens en français du mot ou de l'expression à apprendre. Jamais le mot " + cible + " lui-même : c'est la réponse.");
+      p("• contenu : LA RÉPONSE — le mot ou l'expression en " + cible + ", exactement comme il faut le retenir, rien d'autre.");
       p("• mnemo : LE PASSAGE DE L'HISTOIRE, " + passage + ", " +
-        (dansCible ? "écrit en " + cible + " au niveau " + (g.niveauCible || "A2") + ", avec des phrases simples, où le mot à apprendre apparaît en situation." :
-                     "écrit en français, où le mot à apprendre apparaît en " + cible + ", entre guillemets, en situation."));
+        (dansCible ? "écrit en " + cible + " au niveau " + (g.niveauCible || "A2") + ", avec des phrases simples." :
+                     "écrit en français ; le mot à apprendre y apparaît en " + cible + ", entre guillemets.") +
+        " Le mot y figure exactement comme dans la colonne contenu : l'application le masquera quand ce passage servira d'indice.");
     } else {
-      p("• objet : CE QU'IL FAUT RETROUVER, tiré de la scène : une question courte. Jamais la réponse dedans.");
-      p("• contenu : CE QU'IL FAUT RETENIR, en une ou deux lignes, sans bavardage.");
-      p("• mnemo : LE PASSAGE DE L'HISTOIRE, " + passage + ", qui raconte la scène et y fait rencontrer la chose à apprendre. C'est cette colonne qui, lue dans l'ordre, forme l'histoire.");
+      p("• objet : CE QU'IL FAUT RETROUVER : une question courte, ou une description de la chose sans la nommer. Jamais la réponse dedans.");
+      p("• contenu : LA RÉPONSE, en une ou deux lignes, sans bavardage.");
+      p("• mnemo : LE PASSAGE DE L'HISTOIRE, " + passage + ", qui raconte le moment et y fait rencontrer la réponse, écrite exactement comme dans la colonne contenu : l'application la masquera quand ce passage servira d'indice.");
     }
     p("• prompt : " + (g.images ? "voir la section IMAGES ci-dessous." : "laisse toujours vide."));
     p("• tags : 1 à 3 mots-clés en minuscules, séparés par des virgules.");
     p("• favori : " + (g.favoris ? "« oui » pour les moments clés de l'histoire, 10 % des lignes au plus ; « non » ailleurs." : "« non » partout."));
     p("• image : laisse toujours vide.");
     p("");
+    p("LA COLONNE OBJET NE CONTIENT JAMAIS LA RÉPONSE");
+    if (langue){
+      p("Bon : objet « un billet aller-retour » → contenu « a return ticket ».");
+      p("Mauvais : objet « a return ticket (un billet aller-retour) » — la réponse est déjà dans la question.");
+    } else {
+      p("Bon : objet « Ce que les feuilles rejettent à la lumière » → contenu « du dioxygène ».");
+      p("Mauvais : objet « Les feuilles rejettent du dioxygène » — la réponse est déjà dans la question.");
+    }
+    p("");
+    p("EXEMPLE DE DEUX LIGNES — tiré d'un autre sujet : il montre la forme, pas le contenu attendu");
+    if (dansCible){
+      p(ex("Le voyage de Léa;1. La gare;un billet aller-retour;a return ticket;Léa runs to the ticket office. \"A return ticket to Brighton, please!\" The man smiles and gives her a red ticket.;Une adolescente au guichet d'une gare anglaise;voyage;non;"));
+      p(ex("Le voyage de Léa;1. La gare;le quai;the platform;A voice says: \"The train to Brighton leaves from the platform number 4.\" Léa runs, her bag bouncing behind her.;Une adolescente qui court sur un quai de gare avec sa valise;voyage;non;"));
+    } else if (langue){
+      p(ex("Le voyage de Léa;1. La gare;un billet aller-retour;a return ticket;Au guichet, Léa reprend son souffle : « A return ticket to Brighton, please! » Le vendeur sourit et lui tend un billet rouge.;Une adolescente au guichet d'une gare anglaise;voyage;non;"));
+      p(ex("Le voyage de Léa;1. La gare;le quai;the platform;Le haut-parleur grésille : « The train leaves from the platform number 4! » Léa court, sa valise rebondissant derrière elle.;Une adolescente qui court sur un quai de gare avec sa valise;voyage;non;"));
+    } else {
+      p(ex("Le secret de la serre;1. La serre;Ce que les feuilles rejettent à la lumière;du dioxygène;Tom approche une bûchette presque éteinte d'un bocal rempli de feuilles au soleil. La flamme se ravive d'un coup : les feuilles ont rejeté du dioxygène.;Un garçon qui tient une bûchette au-dessus d'un bocal de feuilles au soleil;photosynthèse;non;"));
+      p(ex("Le secret de la serre;1. La serre;Le pigment vert qui capte la lumière;la chlorophylle;Sous la loupe, Tom découvre des grains verts serrés dans chaque cellule. « C'est la chlorophylle qui attrape la lumière », murmure Inès.;Un garçon penché sur une loupe au-dessus d'une feuille verte;photosynthèse;non;"));
+    }
+    p("");
     p("CE QUI FAIT UNE BONNE SCÈNE");
     n = 0;
     r("Rien de faux sous couvert de fiction : les personnages et l'intrigue sont inventés, jamais ce qu'il faut apprendre. Un personnage inventé peut vivre des événements réels, mais les dates, les lieux, les faits et les mots restent exacts. Dans le doute, supprime la ligne.");
-    r("La colonne objet ne contient jamais la réponse.");
     r("L'application peut aussi poser la question à l'envers : deux lignes ne doivent jamais avoir le même contenu.");
     r("Un passage court et vivant : une scène, pas un résumé. Le vocabulaire reste celui du public.");
     r("Rien de violent ni d'effrayant pour le public, aucun stéréotype.");
@@ -6165,7 +6224,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var avaitAdaptation = (g.dys || []).length || g.fls;
     ajouterAdaptations(g, p);
     if (avaitAdaptation) p("Si une adaptation contredit la longueur des passages, l'adaptation l'emporte : raccourcis-les.");
-    ajouterLivraison(p, true);
+    p("");
+    p("LIVRAISON");
+    p("Commence par le plan de l'histoire (étape 1), puis donne le fichier .xlsx ou .ods téléchargeable, sans mise en forme, sans feuille supplémentaire, sans cellule fusionnée.");
+    p("Si tu ne peux pas créer de fichier, donne le tableau au format CSV, séparé par des points-virgules, dans un bloc de code : je le copierai dans un fichier .csv.");
+    p("Avant de livrer, vérifie : chaque ligne a son passage dans la colonne mnemo ; lus dans l'ordre, les passages racontent une histoire suivie qui respecte ton plan ; aucune colonne objet ne contient la réponse ; la réponse figure dans le passage telle qu'elle est écrite en contenu ; 9 colonnes, aucune ligne vide, colonne image vide partout.");
+    p("");
+    p("Si quelque chose est ambigu, pose-moi UNE seule question, puis écris le plan et le tableau.");
     return L.join("\n");
   }
 
@@ -6744,7 +6809,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         jourSelectionne: null,
         sessionReprise: null,
         sessionsSauvees: [],
-        detailOrigine: "", pileVues: [], reglagesRevOuvert: false, reglagesParcOuvert: false,
+        detailOrigine: "", creationOuverte: false, pileVues: [], reglagesRevOuvert: false, reglagesParcOuvert: false,
         lecture: { auto: false, vitesse: 1, enLigne: false }, voixVersion: 0, LANGUES_LECTURE: LANGUES_LECTURE, lectureDisponible: Voix.dispo(),
         palaceDraftVoixTitre: "fr-FR", palaceDraftVoixContenu: "fr-FR", salleDraftVoix: "", gloRecherche: "", GLOSSAIRE: GLOSSAIRE, recapImport: null, iasPerso: [], iasModifs: {}, iasModaleOuverte: false, iaEditionCle: null, GEN_QUESTIONS: GEN_QUESTIONS, GEN_GENRES: GEN_GENRES,
         questionsModifs: {}, questionsPerso: [], questionsModaleOuverte: false, qEditionCle: null,
@@ -7042,6 +7107,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                    masquee: m.masquee === true, modifiee: !!(m.libelle || typeof m.description === "string" || typeof m.exemple === "string"), perso: false };
         }).concat((this.questionsPerso || []).map(function(x){ return { cle: "p:" + x.id, id: x.id, libelle: x.libelle, description: x.description, exemple: x.exemple, perso: true }; }));
       },
+      questionsExpress(){
+        var base = genParDefaut().questions;
+        return this.questionsProposees.filter(function(q){ return base.indexOf(q.id) !== -1; }).map(function(q){ return q.libelle; }).join(", ");
+      },
+      palaisExempleExiste(){ return this.palaces.some(function(p){ return p.nom === "Découvrir Palais Mental"; }); },
       questionsProposees(){ return this.questionsGestion.filter(function(q){ return !q.masquee; }); },
       questionsOrigineModifiees(){ return Object.keys(this.questionsModifs || {}).length > 0; },
       /* La pastille du bouton « Réglages » signale un réglage inhabituel : on ne cherche pas pourquoi l'image a disparu. */
@@ -9232,6 +9302,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (!window.confirm("Rétablir les IA d'origine ?\n\nLeurs noms et adresses d'origine reviennent, et celles que vous avez masquées réapparaissent. Les IA que vous avez ajoutées sont conservées.")) return;
         this.iasModifs = {}; this.enregistrerIasModifs(); this.iaEditionCle = null;
       },
+      ouvrirCreationPalais(){ this.sidebarOpen = false; this.creationOuverte = true; },
+      choixCreation(voie){
+        this.creationOuverte = false;
+        if (voie === "ia") this.ouvrirGenerateur();
+        else if (voie === "import") this.triggerSpreadsheetImport();
+        else if (voie === "exemple") this.creerPalaisExemple();
+        else this.openPalaceModal(null);
+      },
       async creerPalaisExemple(){
         var maintenant = new Date().toISOString();
         var salles = GLOSSAIRE.filter(function(g){ return g.cle === "bases" || g.cle === "reviser"; }).map(function(g, k){
@@ -9969,6 +10047,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (this._lastPopAt && maintenant - this._lastPopAt < 250) { this.pushHistoryStep(); return; }
         this._lastPopAt = maintenant;
         // Une vue en plein écran se ferme en priorité, avant toute navigation.
+        if (this.creationOuverte) { this.creationOuverte = false; this.pushHistoryStep(); return; }
         if (this.iasModaleOuverte) { this.fermerGestionIas(); this.pushHistoryStep(); return; }
         if (this.questionsModaleOuverte) { this.fermerGestionQuestions(); this.pushHistoryStep(); return; }
         if (this.reglagesRevOuvert || this.reglagesParcOuvert) { this.reglagesRevOuvert = false; this.reglagesParcOuvert = false; this.pushHistoryStep(); return; }
@@ -10751,6 +10830,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         var t = e.target;
         if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
 
+        if (this.creationOuverte) { if (e.key === "Escape") { e.preventDefault(); this.creationOuverte = false; } return; }
         if (this.iasModaleOuverte) { if (e.key === "Escape") { e.preventDefault(); this.fermerGestionIas(); } return; }
         if (this.questionsModaleOuverte) { if (e.key === "Escape") { e.preventDefault(); this.fermerGestionQuestions(); } return; }
         if (this.reglagesRevOuvert || this.reglagesParcOuvert) {
@@ -11494,7 +11574,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         return true;
       },
       triggerSpreadsheetImport(){
-        this.$refs.spreadsheetInput.click();
+        var champ = this.$refs.spreadsheetInput;
+        if (champ) champ.click();
+        else this.showToast("Import impossible ici : ouvrez Paramètres → Import / export tableur.", "erreur");
       },
       handleSpreadsheetImport(evt){
         var file = evt.target.files && evt.target.files[0];
@@ -11567,7 +11649,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           var palaisNom = String(row.palais || "").trim();
           var salleNom = String(row.salle || "").trim();
           var objetNom = String(row.objet || row.titre || "").trim();
-          var contenu = row.contenu !== undefined ? String(row.contenu) : "";
+          var contenu = row.contenu !== undefined ? String(row.contenu).trim() : "";   // comme les autres colonnes : une IA laisse souvent des espaces autour des « ; »
           if (!palaisNom || !salleNom || !objetNom) continue;
           var palace = this.palaces.find(function(p){ return p.nom.trim().toLowerCase() === palaisNom.toLowerCase(); });
           if (!palace) {
