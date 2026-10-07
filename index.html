@@ -1860,6 +1860,20 @@
   .gen-express-note{padding:6px 10px; border-radius:8px; background:var(--bg); border:1px dashed var(--border);}
 
   .gen-volume-libre{margin-top:6px;}
+
+  /* ===== Coller un tableau (8.5) ===== */
+  .modal.collage-tableau{max-width:640px; max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px); overflow-y:auto;}
+  .collage-coller{margin:4px 0 2px;}
+  .collage-zone{display:block; width:100%; box-sizing:border-box; min-height:140px; margin:8px 0; font-family:ui-monospace, Menlo, Consolas, monospace; font-size:12px; line-height:1.45;}
+  .collage-etat{padding:8px 12px; border-radius:8px; font-size:13px; line-height:1.5; background:var(--bg-elevated); border-left:4px solid var(--border);}
+  .collage-etat.ok{border-left-color:var(--c-vert);}
+  .collage-etat.erreur{border-left-color:var(--c-orange);}
+  .collage-detail{display:block; margin-top:2px; font-size:12px; color:var(--text-dim);}
+  .collage-ecartees{margin-top:8px; padding:8px 12px; border-radius:8px; font-size:13px; line-height:1.5; border:1px dashed var(--border);}
+  .collage-ecartees ul{margin:4px 0 0; padding-left:18px;}
+  .collage-ecartees p{margin:4px 0 0;}
+  .collage-ecartees q{color:var(--text-dim); overflow-wrap:anywhere;}
+  .recap-ecartees{margin:10px 0;}
 </style>
 </head>
 <body>
@@ -3033,7 +3047,8 @@
                 <button class="btn small" @click="enregistrerPromptGenere">Enregistrer</button>
               </div>
               <div class="gen-bas">
-                <button class="btn ghost small" @click="triggerSpreadsheetImport">Importer le tableur obtenu</button>
+            <button class="btn small" @click="ouvrirCollage">Coller la réponse de l'IA</button>
+            <button class="btn ghost small" @click="triggerSpreadsheetImport">Importer le tableur obtenu</button>
                 <button class="btn ghost small" @click="reinitialiserGenerateur">Tout effacer</button>
               </div>
             </template>
@@ -3188,6 +3203,7 @@
                   <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px;"><path d="M12 21V8m0 0l-4 4m4-4l4 4"/><path d="M4 6V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/></svg>
                   Choisir un fichier (.xlsx, .csv, .ods)
                 </button>
+                <button class="btn ghost small" @click="ouvrirCollage">Ou coller un tableau</button>
               </div>
             </li>
           </ol>
@@ -4575,11 +4591,40 @@
         <p class="gen-aide-courte">Comment voulez-vous le remplir ?</p>
         <div class="bienvenue-choix">
           <button type="button" class="bienvenue-porte" @click="choixCreation('ia')"><strong>Créer avec une IA</strong><span>Décrivez le sujet : l'application rédige la demande, une IA prépare les fiches.</span></button>
+          <button type="button" class="bienvenue-porte" @click="choixCreation('collage')"><strong>Coller la réponse d'une IA</strong><span>Le tableau copié depuis la conversation, sans passer par un fichier.</span></button>
           <button type="button" class="bienvenue-porte" @click="choixCreation('import')"><strong>Importer un tableur</strong><span>Un fichier Excel, ODS ou CSV déjà rempli.</span></button>
           <button type="button" class="bienvenue-porte" @click="choixCreation('main')"><strong>Créer à la main</strong><span>Un palais vide, à remplir fiche par fiche.</span></button>
           <button v-if="!palaisExempleExiste" type="button" class="bienvenue-porte" @click="choixCreation('exemple')"><strong>Palais d'exemple</strong><span>Un petit palais qui fait découvrir l'application en s'en servant.</span></button>
         </div>
         <div class="modal-actions"><button class="btn ghost" @click="creationOuverte = false">Annuler</button></div>
+      </div>
+    </div>
+
+    <!-- Coller un tableau : la réponse d'une IA, sans fichier — c'est ce qui rend l'import possible sur téléphone -->
+    <div v-if="collageOuvert" class="modal-scrim" @click.self="fermerCollage">
+      <div class="modal collage-tableau" role="dialog" aria-labelledby="ct-titre">
+        <h3 id="ct-titre">Coller un tableau</h3>
+        <p class="gen-aide-courte">Copiez la réponse de l'IA — le tableau seul, ou toute la réponse : l'application retrouve le tableau, même dans un bloc de code ou entouré de texte.</p>
+        <button v-if="pressePapiersLisible" type="button" class="btn small collage-coller" @click="collerPressePapiers">Coller depuis le presse-papiers</button>
+        <textarea v-model="collageTexte" class="collage-zone" rows="8" spellcheck="false" aria-label="Tableau à importer" placeholder="palais;salle;objet;contenu;mnemo;prompt;tags;favori;image&#10;…"></textarea>
+        <div v-if="collageAnalyse" class="collage-etat" :class="collageAnalyse.fiches ? 'ok' : 'erreur'" role="status">
+          <template v-if="collageAnalyse.erreur">{{ collageAnalyse.erreur }}</template>
+          <template v-else-if="!collageAnalyse.fiches">Tableau reconnu, mais aucune ligne complète : chaque fiche doit avoir au moins un palais, une salle et un objet.</template>
+          <template v-else>
+            <strong>{{ collageAnalyse.fiches }} fiche{{ collageAnalyse.fiches > 1 ? 's' : '' }} reconnue{{ collageAnalyse.fiches > 1 ? 's' : '' }}</strong>
+            · {{ collageAnalyse.palais.length }} palais · {{ collageAnalyse.nbSalles }} salle{{ collageAnalyse.nbSalles > 1 ? 's' : '' }}
+            <span class="collage-detail">{{ collageAnalyse.palais.join(' · ') }}<template v-if="collageAnalyse.existants.length"> — complète le palais existant : {{ collageAnalyse.existants.join(', ') }}</template></span>
+          </template>
+        </div>
+        <div v-if="collageAnalyse && collageAnalyse.ecartees.length" class="collage-ecartees">
+          <strong>{{ collageAnalyse.ecartees.length }} ligne{{ collageAnalyse.ecartees.length > 1 ? 's' : '' }} écartée{{ collageAnalyse.ecartees.length > 1 ? 's' : '' }}</strong>, plutôt que d'être importée{{ collageAnalyse.ecartees.length > 1 ? 's' : '' }} de travers. Corrigez-{{ collageAnalyse.ecartees.length > 1 ? 'les' : 'la' }} ici, ou ajoutez la fiche à la main après l'import.
+          <ul><li v-for="(e, k) in collageAnalyse.ecartees.slice(0, 6)" :key="k">Ligne {{ e.ligne }} — {{ e.raison }} : <q>{{ e.extrait }}</q></li></ul>
+          <p v-if="collageAnalyse.ecartees.length > 6">… et {{ collageAnalyse.ecartees.length - 6 }} autre(s).</p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn ghost" @click="fermerCollage">Annuler</button>
+          <button class="btn primary" :disabled="!collageAnalyse || !collageAnalyse.fiches || importEnCours" @click="importerCollage">Importer{{ collageAnalyse && collageAnalyse.fiches ? ' (' + collageAnalyse.fiches + ')' : '' }}</button>
+        </div>
       </div>
     </div>
 
@@ -4597,6 +4642,11 @@
             <button v-if="recapImport.palais.length > 1" class="btn ghost small" @click="ouvrirPalaisImporte(p.id)">Ouvrir</button>
           </li>
         </ul>
+        <div class="collage-ecartees recap-ecartees" v-if="recapImport.ecartees && recapImport.ecartees.length">
+          <strong>{{ recapImport.ecartees.length }} ligne{{ recapImport.ecartees.length > 1 ? 's' : '' }} écartée{{ recapImport.ecartees.length > 1 ? 's' : '' }}</strong>, plutôt que d'être importée{{ recapImport.ecartees.length > 1 ? 's' : '' }} de travers :
+          <ul><li v-for="(e, k) in recapImport.ecartees.slice(0, 6)" :key="k">Ligne {{ e.ligne }} — {{ e.raison }} : <q>{{ e.extrait }}</q></li></ul>
+          <p v-if="recapImport.ecartees.length > 6">… et {{ recapImport.ecartees.length - 6 }} autre(s).</p>
+        </div>
         <div class="recap-images" v-if="recapImport.sansImage.length">
           <h4>Ajouter des images ? <span>facultatif</span></h4>
           <p>{{ recapImport.sansImage.length }} fiche{{ recapImport.sansImage.length > 1 ? 's' : '' }} sans image. Les images aident à mémoriser, mais leur création demande une connexion internet et prend du temps : environ {{ dureeImages(recapImport.sansImage.length) }}{{ pollinationsKey ? '' : ' sans clé de service' }}.</p>
@@ -5843,7 +5893,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
     return "telecharge";
   }
-  var APP_VERSION = "8.4";
+  var APP_VERSION = "8.5";
   /* Instantanés de sauvegarde : uniquement le TEXTE (les images sont déjà stockées à part et
      pèseraient trop pour être dupliquées). Filet contre les fausses manœuvres, pas un
      remplacement de l'export complet. */
@@ -6056,6 +6106,112 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   /* Nombre de fiches : un nombre précis, ou « l'IA estime ». Avec un nombre, la ligne est celle
      d'avant, mot pour mot. Quand l'IA estime, un plafond adapté à l'approche évite qu'une IA
      gratuite coupe sa réponse, et elle annonce son nombre avant de commencer. */
+  /* ---------------------------------------------------------------
+     LECTURE TOLÉRANTE D'UN TABLEAU EN TEXTE — fichier .csv, ou réponse d'IA collée.
+     Une IA livre rarement un CSV parfait : bloc de code, phrase avant et après, colonnes vides
+     de fin omises, guillemets droits dans un texte, tableau markdown, tabulations d'un tableau
+     copié à l'écran. Ces défauts faisaient échouer l'import entier : ils sont rattrapés. Ce qui
+     reste ambigu — une colonne de trop ou de moins au milieu — est écarté et signalé, jamais
+     importé décalé.
+     --------------------------------------------------------------- */
+  function normaliserEntete(h){
+    var s = String(h == null ? "" : h).replace(/^﻿/, "").trim().replace(/^[*_`"']+|[*_`"']+$/g, "").trim().toLowerCase();
+    try { s = s.normalize("NFD").replace(/[̀-ͯ]/g, ""); } catch(e){}
+    return s;
+  }
+  function decouperLigneMarkdown(l){
+    var s = String(l).trim().replace(/\\\|/g, "\u0001");
+    if (s.charAt(0) === "|") s = s.slice(1);
+    if (s.charAt(s.length - 1) === "|") s = s.slice(0, -1);
+    return s.split("|").map(function(x){ return x.replace(/\u0001/g, "|"); });
+  }
+  var FAVORI_LISIBLE = /^(oui|non|yes|no|true|false|vrai|faux|1|0|x)?$/i;
+  function lireTableauTexte(texte){
+    var res = { lignes: [], ecartees: [], horsTableau: 0, format: "", erreur: "" };
+    var lignes = String(texte == null ? "" : texte).replace(/^﻿/, "").replace(/\r\n?/g, "\n").split("\n");
+    var SEPS = [["\t", "tabulations"], ["|", "tableau markdown"], [";", "points-virgules"], [",", "virgules"]];
+    var iEnt = -1, sep = null, entete = null, k, s;
+    for (k = 0; k < lignes.length && iEnt === -1; k++){
+      for (s = 0; s < SEPS.length; s++){
+        var cel = (SEPS[s][0] === "|" ? decouperLigneMarkdown(lignes[k]) : lignes[k].split(SEPS[s][0])).map(normaliserEntete);
+        if (cel.indexOf("palais") !== -1 && (cel.indexOf("objet") !== -1 || cel.indexOf("titre") !== -1)) { iEnt = k; sep = SEPS[s]; entete = cel; break; }
+      }
+    }
+    if (iEnt === -1) { res.erreur = "Aucun tableau reconnu : il faut une ligne d'en-tête avec au moins « palais », « salle » et « objet »."; return res; }
+    res.format = sep[1];
+    var n = entete.length;
+    // Le tableau s'arrête à la fin d'un bloc de code ou, pour un tableau markdown, à la première ligne qui n'en est plus une.
+    var bloc = [];
+    for (k = iEnt + 1; k < lignes.length; k++){
+      var l = lignes[k];
+      if (/^\s*```/.test(l)) break;
+      if (sep[0] === "|" && l.trim() && l.trim().charAt(0) !== "|") break;
+      bloc.push({ texte: l, num: k + 1 });
+    }
+    var brutes = [];
+    var propre = function(x){ return String(x == null ? "" : x).trim(); };
+    if (sep[0] === "|") {
+      bloc.forEach(function(b){
+        if (!b.texte.trim()) return;
+        var c = decouperLigneMarkdown(b.texte);
+        if (c.every(function(x){ return !x.trim() || /^\s*:?-{2,}:?\s*$/.test(x); })) return;   // ligne |---|
+        brutes.push({ cellules: c.map(function(x){ return propre(x).replace(/^\*\*([\s\S]*)\*\*$/, "$1").replace(/<br\s*\/?>/gi, "\n"); }), num: b.num, extrait: b.texte.trim() });
+      });
+    } else {
+      var nonVides = bloc.filter(function(b){ return b.texte.trim(); });
+      var p = typeof Papa !== "undefined" ? Papa.parse(bloc.map(function(b){ return b.texte; }).join("\n"), { delimiter: sep[0], skipEmptyLines: "greedy" }) : null;
+      var guillemetsFautifs = !p || (p.errors || []).some(function(e){ return e.type === "Quotes"; });
+      if (!guillemetsFautifs) {
+        // Lecture d'ensemble : elle garde les textes sur plusieurs lignes des fichiers bien formés.
+        var idx = 0;
+        p.data.forEach(function(row){
+          var b = nonVides[Math.min(idx, nonVides.length - 1)] || { num: iEnt + 2 };
+          brutes.push({ cellules: row.map(propre), num: b.num, extrait: row.join(sep[0]) });
+          idx += row.join("").split("\n").length;
+        });
+      } else {
+        // Des guillemets mal placés faussaient toute la suite : chaque ligne est alors lue seule.
+        nonVides.forEach(function(b){
+          var avec = typeof Papa !== "undefined" ? Papa.parse(b.texte, { delimiter: sep[0] }) : { data: [], errors: [1] };
+          var c1 = avec.data[0] || [];
+          var c2 = b.texte.split(sep[0]);
+          var c = (!(avec.errors || []).length && c1.length === n) ? c1 : (c2.length === n || c1.length !== n ? c2 : c1);
+          brutes.push({ cellules: c.map(propre), num: b.num, extrait: b.texte.trim() });
+        });
+      }
+    }
+    var iFav = entete.indexOf("favori");
+    var champ = function(o, cle){ return String(o[cle] || "").trim(); };
+    brutes.forEach(function(r){
+      var c = r.cellules.slice();
+      var pleines = c.filter(function(x){ return x !== ""; }).length;
+      if (c.length < 3 || pleines < 2) { res.horsTableau++; return; }      // une phrase, pas une ligne du tableau
+      var extrait = r.extrait.length > 90 ? r.extrait.slice(0, 87) + "…" : r.extrait;
+      var ecarter = function(raison){ res.ecartees.push({ ligne: r.num, raison: raison, extrait: extrait }); };
+      var nomSep = sep[0] === "\t" ? "une tabulation" : "« " + sep[0] + " »";
+      if (c.length > n) {
+        if (c.slice(n).some(function(x){ return x !== ""; })) { ecarter("une colonne de trop — sans doute " + nomSep + " dans un texte"); return; }
+        c = c.slice(0, n);
+        if (iFav !== -1 && !FAVORI_LISIBLE.test(c[iFav])) { ecarter("une colonne de trop — sans doute " + nomSep + " dans un texte"); return; }
+      }
+      var completee = c.length < n;
+      while (c.length < n) c.push("");
+      // Colonnes vides de fin omises : on complète. Mais un « oui »/« non » hors de la colonne favori
+      // trahit une colonne manquante au milieu : la ligne serait décalée.
+      if (completee && iFav !== -1 && !c[iFav]) {
+        var dernier = -1;
+        c.forEach(function(x, q){ if (x !== "") dernier = q; });
+        if (dernier !== -1 && dernier !== iFav && /^(oui|non)$/i.test(c[dernier])) { ecarter("une colonne manque au milieu de la ligne"); return; }
+      }
+      if (iFav !== -1 && !FAVORI_LISIBLE.test(c[iFav])) { ecarter("colonnes décalées : « " + c[iFav].slice(0, 30) + " » dans la colonne favori"); return; }
+      var o = {};
+      entete.forEach(function(h, q){ if (h && !(h in o)) o[h] = c[q]; });
+      if (!champ(o, "palais") || !champ(o, "salle") || !(champ(o, "objet") || champ(o, "titre"))) { ecarter("incomplète : palais, salle ou objet manquant"); return; }
+      res.lignes.push(o);
+    });
+    return res;
+  }
+
   function volumeValide(v){
     if (v === "auto") return "auto";
     var n = parseInt(v, 10);
@@ -6365,6 +6521,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       ["Générateur de prompt", "Rédige le prompt à votre place, avec les règles d'une bonne fiche et les adaptations dys et FLS.", "Menu latéral"],
       ["Bibliothèque de prompts", "Vos prompts enregistrés, à recharger, modifier ou copier.", "Générateur de prompt"],
       ["Raconter une histoire", "Approche expérimentale du générateur : le palais devient le décor d'une histoire, chaque salle un lieu que traverse le héros. Le passage de récit va dans la colonne mnémo : il se lit en parcours et sert d'indice en révision.", "Générateur de prompt → Votre approche"],
+      ["Coller un tableau", "Importer directement la réponse d'une IA, copiée dans la conversation : l'application retrouve le tableau, même entouré de texte, sans passer par un fichier ni par un tableur.", "Nouveau palais · Générateur de prompt · Paramètres → Import / export tableur"],
       ["Comprendre pour retenir", "Approche expérimentale du générateur : une suite logique de questions — pourquoi, comment, que se passe-t-il si — qui s'appuient les unes sur les autres. Le parcours du palais devient une progression.", "Générateur de prompt → Votre approche"],
       ["Lignes « Méthode » et « Piège »", "Fiches particulières : une démarche en trois étapes, ou une erreur fréquente et sa correction.", ""],
       ["Dupliquer un palais", "En faire une copie complète, pour trier sans risque de perdre l'original.", "Menu « Plus » d'un palais"],
@@ -6846,7 +7003,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         jourSelectionne: null,
         sessionReprise: null,
         sessionsSauvees: [],
-        detailOrigine: "", creationOuverte: false, volumeSaisieLibre: false, telechargementApp: false, pileVues: [], reglagesRevOuvert: false, reglagesParcOuvert: false,
+        detailOrigine: "", creationOuverte: false, collageOuvert: false, collageTexte: "", importEnCours: false, volumeSaisieLibre: false, telechargementApp: false, pileVues: [], reglagesRevOuvert: false, reglagesParcOuvert: false,
         lecture: { auto: false, vitesse: 1, enLigne: false }, voixVersion: 0, LANGUES_LECTURE: LANGUES_LECTURE, lectureDisponible: Voix.dispo(),
         palaceDraftVoixTitre: "fr-FR", palaceDraftVoixContenu: "fr-FR", salleDraftVoix: "", gloRecherche: "", GLOSSAIRE: GLOSSAIRE, recapImport: null, iasPerso: [], iasModifs: {}, iasModaleOuverte: false, iaEditionCle: null, GEN_QUESTIONS: GEN_QUESTIONS, GEN_GENRES: GEN_GENRES,
         questionsModifs: {}, questionsPerso: [], questionsModaleOuverte: false, qEditionCle: null,
@@ -7156,6 +7313,23 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           if (v === "libre") { this.volumeSaisieLibre = true; if (this.gen.volume === "auto") this.gen.volume = "100"; }
           else { this.volumeSaisieLibre = false; this.gen.volume = v; }
         }
+      },
+      pressePapiersLisible(){ return typeof navigator !== "undefined" && !!(navigator.clipboard && navigator.clipboard.readText); },
+      collageAnalyse(){
+        var t = this.collageTexte;
+        if (!t || !t.trim()) return null;
+        var lu = lireTableauTexte(t);
+        var palais = {}, salles = {}, existants = {};
+        var connus = this.palaces.map(function(p){ return p.nom.trim().toLowerCase(); });
+        lu.lignes.forEach(function(r){
+          var p = String(r.palais).trim(), cle = p.toLowerCase();
+          palais[cle] = palais[cle] || p;
+          salles[cle + "\u0001" + String(r.salle).trim().toLowerCase()] = true;
+          if (connus.indexOf(cle) !== -1) existants[cle] = p;
+        });
+        return { lu: lu, erreur: lu.erreur, fiches: lu.lignes.length, ecartees: lu.ecartees,
+                 palais: Object.keys(palais).map(function(k){ return palais[k]; }), nbSalles: Object.keys(salles).length,
+                 existants: Object.keys(existants).map(function(k){ return existants[k]; }) };
       },
       estFichierLocal(){ return typeof window !== "undefined" && window.location && window.location.protocol === "file:"; },
       questionsExpress(){
@@ -9376,9 +9550,59 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         }
         this.telechargementApp = false;
       },
+      ouvrirCollage(){ this.creationOuverte = false; this.sidebarOpen = false; this.collageTexte = ""; this.collageOuvert = true; },
+      fermerCollage(){ this.collageOuvert = false; },
+      async collerPressePapiers(){
+        try {
+          var t = await navigator.clipboard.readText();
+          if (!t || !t.trim()) { this.showToast("Le presse-papiers est vide : copiez d'abord la réponse de l'IA.", "erreur"); return; }
+          this.collageTexte = t;
+        } catch(e){
+          this.showToast("Le navigateur ne laisse pas lire le presse-papiers : appuyez longuement dans la case, puis « Coller ».", "erreur");
+        }
+      },
+      async importerCollage(){
+        var a = this.collageAnalyse;
+        if (!a || !a.fiches || this.importEnCours) return;
+        this.collageOuvert = false;
+        await this.importerLignesTableur(a.lu.lignes, a.lu.ecartees);
+      },
+      /* Tronc commun des imports de tableau : fichier .xlsx, .ods, .csv, ou tableau collé. */
+      async importerLignesTableur(rows, ecartees){
+        ecartees = ecartees || [];
+        if (this.importEnCours) return;
+        this.importEnCours = true;
+        try {
+          if (rows.length) await this.prendreInstantane("avant import tableur");
+          var mergeResult = await this.mergeSpreadsheetRows(rows);
+          if (mergeResult.count === 0) {
+            this.showToast("Aucune ligne valide trouvée (colonnes attendues : palais, salle, objet, contenu)." + (ecartees.length ? " " + ecartees.length + " ligne(s) écartée(s) : " + ecartees[0].raison + "." : ""), "erreur");
+            return;
+          }
+          this.showToast(mergeResult.count + " objet(s) importé(s)/mis à jour." + (ecartees.length ? " " + ecartees.length + " ligne(s) écartée(s)." : ""), ecartees.length ? "erreur" : "ok");
+          // Si le tableur demandait des images, le résultat mérite un vrai bilan consultable :
+          // un message fugace passait inaperçu derrière la proposition de génération, et
+          // l'utilisateur croyait que la colonne « image » n'avait pas été prise en compte.
+          if (mergeResult.imagesDemandees) {
+            this.importImageResult = {
+              demandees: mergeResult.imagesDemandees,
+              ok: mergeResult.imagesOk,
+              echecs: mergeResult.imagesEchec,
+              details: mergeResult.imageErreurs,
+              items: mergeResult.items
+            };
+          } else {
+            this.offerBatchAfterImport(mergeResult.items);
+            if (this.recapImport && ecartees.length) this.recapImport = Object.assign({}, this.recapImport, { ecartees: ecartees });
+          }
+        } finally {
+          this.importEnCours = false;
+        }
+      },
       ouvrirCreationPalais(){ this.sidebarOpen = false; this.creationOuverte = true; },
       choixCreation(voie){
         this.creationOuverte = false;
+        if (voie === "collage") { this.ouvrirCollage(); return; }
         if (voie === "ia") this.ouvrirGenerateur();
         else if (voie === "import") this.triggerSpreadsheetImport();
         else if (voie === "exemple") this.creerPalaisExemple();
@@ -10123,6 +10347,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (this._lastPopAt && maintenant - this._lastPopAt < 250) { this.pushHistoryStep(); return; }
         this._lastPopAt = maintenant;
         // Une vue en plein écran se ferme en priorité, avant toute navigation.
+        if (this.collageOuvert) { this.fermerCollage(); this.pushHistoryStep(); return; }
         if (this.creationOuverte) { this.creationOuverte = false; this.pushHistoryStep(); return; }
         if (this.iasModaleOuverte) { this.fermerGestionIas(); this.pushHistoryStep(); return; }
         if (this.questionsModaleOuverte) { this.fermerGestionQuestions(); this.pushHistoryStep(); return; }
@@ -10906,6 +11131,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         var t = e.target;
         if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
 
+        if (this.collageOuvert) { if (e.key === "Escape") { e.preventDefault(); this.fermerCollage(); } return; }
         if (this.creationOuverte) { if (e.key === "Escape") { e.preventDefault(); this.creationOuverte = false; } return; }
         if (this.iasModaleOuverte) { if (e.key === "Escape") { e.preventDefault(); this.fermerGestionIas(); } return; }
         if (this.questionsModaleOuverte) { if (e.key === "Escape") { e.preventDefault(); this.fermerGestionQuestions(); } return; }
@@ -11663,44 +11889,22 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         var reader = new FileReader();
         reader.onload = async function(e){
           try {
-            var rows;
+            var rows, ecartees = [];
             if (name.endsWith(".csv")) {
-              var parsed = Papa.parse(String(e.target.result), {
-                header: true, skipEmptyLines: true,
-                transformHeader: function(h){ return h.trim().toLowerCase(); }
-              });
-              if (parsed.errors && parsed.errors.length) throw new Error(parsed.errors[0].message);
-              rows = parsed.data;
+              var lu = lireTableauTexte(String(e.target.result));
+              if (lu.erreur) throw new Error(lu.erreur);
+              rows = lu.lignes; ecartees = lu.ecartees;
             } else {
               var wb = XLSX.read(e.target.result, { type: "array" });
               var sheet = wb.Sheets[wb.SheetNames[0]];
               var raw = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: "" });
               rows = raw.map(function(r){
                 var out = {};
-                Object.keys(r).forEach(function(k){ out[k.trim().toLowerCase()] = r[k]; });
+                Object.keys(r).forEach(function(k){ out[normaliserEntete(k)] = r[k]; });
                 return out;
               });
             }
-            var mergeResult = await self.mergeSpreadsheetRows(rows);
-            if (mergeResult.count === 0) {
-              self.showToast("Aucune ligne valide trouvée (colonnes attendues : palais, salle, objet, contenu).", "erreur");
-            } else {
-              self.showToast(mergeResult.count + " objet(s) importé(s)/mis à jour.", "ok");
-              // Si le tableur demandait des images, le résultat mérite un vrai bilan consultable :
-              // un message fugace passait inaperçu derrière la proposition de génération, et
-              // l'utilisateur croyait que la colonne « image » n'avait pas été prise en compte.
-              if (mergeResult.imagesDemandees) {
-                self.importImageResult = {
-                  demandees: mergeResult.imagesDemandees,
-                  ok: mergeResult.imagesOk,
-                  echecs: mergeResult.imagesEchec,
-                  details: mergeResult.imageErreurs,
-                  items: mergeResult.items
-                };
-              } else {
-                self.offerBatchAfterImport(mergeResult.items);
-              }
-            }
+            await self.importerLignesTableur(rows, ecartees);
           } catch(err){
             console.error(err);
             self.showToast("Impossible de lire ce fichier : " + err.message, "erreur");
