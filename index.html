@@ -1874,6 +1874,15 @@
   .collage-ecartees p{margin:4px 0 0;}
   .collage-ecartees q{color:var(--text-dim); overflow-wrap:anywhere;}
   .recap-ecartees{margin:10px 0;}
+
+  /* ===== Images générées et fond d'écran (8.6) ===== */
+  .cle-etat.refusee{color:var(--c-orange); border-color:var(--c-orange);}
+  .cle-refusee{margin:8px 0 0; padding:8px 12px; border-radius:8px; font-size:13px; line-height:1.5; border-left:4px solid var(--c-orange); background:var(--bg-elevated);}
+  .skin-prop{position:relative;}
+  .skin-prop.en-attente img, .skin-prop.echec img{visibility:hidden;}
+  .skin-prop-etat{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:4px; text-align:center; font-size:12px; color:var(--text-dim); background:var(--bg-elevated);}
+  .skin-prop-etat.echec{color:var(--c-orange);}
+  .skin-prop.echec{cursor:not-allowed; border-style:dashed; border-color:var(--border);}
 </style>
 </head>
 <body>
@@ -3347,7 +3356,7 @@
             <div class="cle-entete">
               <span class="cle-nom">Pollinations</span>
               <span class="cle-role">Génération d'images par IA</span>
-              <span class="cle-etat" :class="pollinationsKey ? 'active' : ''">{{ pollinationsKey ? 'Clé enregistrée' : 'Sans clé' }}</span>
+              <span class="cle-etat" :class="cleRefusee ? 'refusee' : (pollinationsKey ? 'active' : '')">{{ cleRefusee ? 'Clé refusée' : (pollinationsKey ? 'Clé enregistrée' : 'Sans clé') }}</span>
             </div>
             <p class="sub explication">Sert au bouton « Générer (IA) » et à la génération par lot. <strong>Sans clé</strong> : l'attente entre deux images est d'environ 23 secondes. <strong>Avec une clé</strong> : environ 9 secondes. Être connecté au site dans un autre onglet ne change rien — seule une clé renseignée ici est prise en compte.</p>
             <p class="stock-hint explication">Où l'obtenir : créez un compte sur <code>pollinations.ai</code>, puis générez une clé dans votre espace personnel. Elle commence généralement par « pk_ ».</p>
@@ -3357,6 +3366,7 @@
               <button class="btn ghost small" v-if="pollinationsKey" @click="clearPollinationsKey">Retirer</button>
             </div>
             <p class="stock-hint" v-if="pollinationsKey">Clé active, se terminant par « …{{ pollinationsKey.slice(-4) }} ».</p>
+              <p class="cle-refusee" v-if="cleRefusee" role="alert"><strong>Le service refuse cette clé</strong> — crédits épuisés ou clé expirée. Les images se génèrent sans clé en attendant, plus lentement. Rechargez-la sur pollinations.ai, ou retirez-la.</p>
           </div>
 
           <div class="cle-service">
@@ -3611,19 +3621,21 @@
                      :placeholder="skinSource==='ia' ? 'ex. vieille bibliothèque, lumière dorée, aquarelle' : 'ex. forêt brumeuse'"
                      style="flex:1; min-width:180px;">
               <button class="btn small" :disabled="skinTravail" @click="lancerSkin">
-                {{ skinTravail ? 'Patientez…' : (skinSource==='ia' ? 'Générer' : 'Chercher') }}
+                {{ skinTravail || (skinSource==='ia' && skinEnPreparation) ? 'Patientez…' : (skinSource==='ia' ? 'Générer' : 'Chercher') }}
               </button>
             </div>
             <div v-else>
               <button class="btn small" @click="declencherImportSkin">Choisir une image sur l'appareil</button>
             </div>
-            <p class="stock-hint explication" v-if="skinSource==='ia'">Votre texte part tel quel. Chaque image s'ajoute à la galerie : comparez, puis choisissez.</p>
+            <p class="stock-hint explication" v-if="skinSource==='ia'">Votre texte part tel quel. L'image est créée au format de cet écran — en largeur sur ordinateur, en hauteur sur téléphone — et s'ajoute à la galerie : comparez, puis choisissez.</p>
             <p class="stock-hint explication" v-if="skinSource==='photo'">Plusieurs photos sont proposées ; cliquez celle qui vous convient.</p>
 
             <div v-if="skinPropositions.length" class="skin-propositions">
-              <button v-for="(pr, k) in skinPropositions" :key="pr.seed || pr.url" class="skin-prop" :class="{choisie: skinApercu === pr}"
-                      @click="choisirFond(pr)" :disabled="skinTravail" :aria-label="'Choisir la proposition ' + (k+1)">
-                <img :src="pr.apercu || pr.url" alt="" loading="lazy">
+              <button v-for="(pr, k) in skinPropositions" :key="pr.seed || pr.url" class="skin-prop" :class="{choisie: skinApercu === pr, 'en-attente': pr.etat === 'chargement', echec: pr.etat === 'echec'}"
+                      @click="choisirFond(pr)" :disabled="skinTravail || pr.etat === 'chargement' || pr.etat === 'echec'" :aria-label="'Choisir la proposition ' + (k+1)">
+                <img :src="pr.apercu || pr.url" alt="" @load="finChargementFond(pr)" @error="echecFond(pr)">
+                <span v-if="pr.etat === 'chargement'" class="skin-prop-etat">Création…</span>
+                <span v-else-if="pr.etat === 'echec'" class="skin-prop-etat echec">{{ pr.raison || 'Échec' }}</span>
               </button>
             </div>
             <div v-if="skinApercu" class="skin-apercu-choix">
@@ -3816,18 +3828,20 @@
 
           <div class="image-zone">
             <div class="image-preview">
-              <img v-if="imageMode==='generate' && previewUrl" :src="previewUrl" @load="onPreviewLoad" @error="onPreviewError" alt="Aperçu généré">
-              <img v-else-if="detailObjet.imageDataUrl" :src="detailObjet.imageDataUrl" alt="Image actuelle">
-              <div v-else class="ph">
+              <!-- L'aperçu reste chargé quand on change d'onglet : sans cela, la génération n'aboutissait
+                   jamais et restait « en cours », roue affichée sur toutes les fiches suivantes. -->
+              <img v-if="previewUrl" v-show="imageMode==='generate'" :src="previewUrl" @load="onPreviewLoad" @error="onPreviewError" alt="Aperçu généré">
+              <img v-if="!(imageMode==='generate' && previewUrl) && detailObjet.imageDataUrl" :src="detailObjet.imageDataUrl" alt="Image actuelle">
+              <div v-if="!(imageMode==='generate' && previewUrl) && !detailObjet.imageDataUrl" class="ph">
                 <svg viewBox="0 0 24 32"><path d="M2 30 V12 A10 10 0 0 1 22 12 V30"/></svg>
                 <span v-if="translating">Traduction en anglais…</span>
                 <span v-else-if="generating">Préparation de l'image…</span>
                 <span v-else>Aucune image pour le moment</span>
               </div>
-              <div class="spin" v-if="generating">
+              <div class="spin" v-if="generating && imageMode==='generate'">
                 <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9"/></svg>
               </div>
-              <button class="img-remove-btn" v-if="detailObjet.imageDataUrl && !generating" @click.stop="removeObjetImage" title="Supprimer l'image de cet objet" aria-label="Supprimer l'image">
+              <button class="img-remove-btn" v-if="detailObjet.imageDataUrl && !(generating && imageMode==='generate')" @click.stop="removeObjetImage" title="Supprimer l'image de cet objet" aria-label="Supprimer l'image">
                 <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px;"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
               </button>
             </div>
@@ -4649,7 +4663,7 @@
         </div>
         <div class="recap-images" v-if="recapImport.sansImage.length">
           <h4>Ajouter des images ? <span>facultatif</span></h4>
-          <p>{{ recapImport.sansImage.length }} fiche{{ recapImport.sansImage.length > 1 ? 's' : '' }} sans image. Les images aident à mémoriser, mais leur création demande une connexion internet et prend du temps : environ {{ dureeImages(recapImport.sansImage.length) }}{{ pollinationsKey ? '' : ' sans clé de service' }}.</p>
+          <p>{{ recapImport.sansImage.length }} fiche{{ recapImport.sansImage.length > 1 ? 's' : '' }} sans image. Les images aident à mémoriser, mais leur création demande une connexion internet et prend du temps : environ {{ dureeImages(recapImport.sansImage.length) }}{{ cleImages ? '' : ' sans clé de service' }}.</p>
           <p class="stock-hint">Vous pourrez le faire plus tard : menu « Plus » d'un palais, ou Paramètres → Images en lot.</p>
         </div>
         <div class="modal-actions">
@@ -4695,7 +4709,7 @@
           <span>Remplacer aussi les images déjà présentes (pas seulement celles manquantes)</span>
         </label>
         <p class="stock-hint" v-if="batchMode==='ia'">
-          {{ batchQueuePreviewCount }} objet{{ batchQueuePreviewCount!==1?'s':'' }} seront traités un par un, avec un délai généreux et volontairement variable (environ {{ pollinationsKey ? '9' : '23' }}s de base, plus une part aléatoire, plus long après un échec) entre chaque génération — pour rester discret vis-à-vis du service gratuit plutôt que rapide. La première image obtenue pour chacun est automatiquement enregistrée — vous pourrez toujours regénérer manuellement celles qui ne vous conviennent pas ensuite.
+          {{ batchQueuePreviewCount }} objet{{ batchQueuePreviewCount!==1?'s':'' }} seront traités un par un, avec un délai généreux et volontairement variable (environ {{ cleImages ? '9' : '23' }}s de base, plus une part aléatoire, plus long après un échec) entre chaque génération — pour rester discret vis-à-vis du service gratuit plutôt que rapide. La première image obtenue pour chacun est automatiquement enregistrée — vous pourrez toujours regénérer manuellement celles qui ne vous conviennent pas ensuite.
         </p>
         <p class="stock-hint" v-else-if="batchMode==='stock'">
           {{ batchQueuePreviewCount }} objet{{ batchQueuePreviewCount!==1?'s':'' }} seront traités un par un : recherche automatique sur Openverse à partir du <strong>nom de chaque objet</strong>, une photo choisie au hasard parmi les résultats est retenue directement, sans étape de sélection manuelle. Les objets sans résultat sont simplement laissés sans image, à traiter manuellement ensuite si besoin.
@@ -5525,9 +5539,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return out;
   }
 
-  function buildImageUrl(prompt, seed, model, apiKey){
+  function buildImageUrl(prompt, seed, model, apiKey, largeur, hauteur){
     var paramsObj = {
-      width: "640", height: "640",
+      width: String(largeur || 640), height: String(hauteur || 640),
       seed: String(seed), model: model,
       /* « private » et « referrer » ont cessé d'être acceptés sans jeton par le service : la
          requête échouait alors que la même adresse sans ces paramètres répond normalement. */
@@ -5553,7 +5567,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return "https://text.pollinations.ai/" + encodeURIComponent(text) + "?" + params.toString();
   }
 
-  async function translateToEnglish(text, apiKey){
+  async function translateToEnglish(text, apiKey, surRefusCle){
     var t = (text || "").trim();
     if (!t) return t;
     try {
@@ -5562,9 +5576,35 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       var out = (await resp.text()).trim().replace(/^["'“”]+|["'“”]+$/g, "");
       return out || t;
     } catch(e){
+      /* Avec une clé, un échec vient souvent d'elle (crédits épuisés, clé expirée) : on réessaie
+         sans. Si ça passe, la clé est bien en cause et l'application cesse de l'envoyer. */
+      if (apiKey) {
+        var sansCle = await translateToEnglish(t, "", null);
+        if (sansCle !== t && surRefusCle) surRefusCle();
+        return sansCle;
+      }
       console.error("translation failed, using original prompt", e);
       return t;
     }
+  }
+  /* Une balise <img> ne dit pas pourquoi une image n'arrive pas. Après un échec, on redemande
+     la même adresse pour lire la réponse du service et donner une raison utile. */
+  var DELAI_MAX_GENERATION = 90000;
+  async function diagnostiquerImage(url){
+    try {
+      var r = await fetch(url, { mode: "cors", cache: "no-store" });
+      if (r.ok) return { code: 200 };
+      return { code: r.status, attente: parseInt(r.headers.get("Retry-After"), 10) || 0 };
+    } catch(e){ return { code: 0 }; }
+  }
+  function messageEchecImage(d){
+    var code = d ? d.code : 0;
+    if (code === 200) return { court: "Arrivée trop tard", long: "L'image est arrivée trop tard : relancez la génération." };
+    if (code === 401 || code === 402 || code === 403) return { court: "Clé refusée", long: "Le service refuse la clé Pollinations : crédits épuisés ou clé expirée. Rechargez-la ou retirez-la dans Paramètres → Clés d'accès." };
+    if (code === 429) return { court: "Service saturé", long: "Le service d'images est saturé : réessayez dans " + (d.attente || 20) + " secondes." };
+    if (code >= 500) return { court: "Service indisponible", long: "Le service d'images est momentanément indisponible (erreur " + code + ") : réessayez plus tard." };
+    if (code >= 400) return { court: "Demande refusée", long: "Le service a refusé cette demande (erreur " + code + ") : essayez une description plus courte ou différente." };
+    return { court: "Pas de réponse", long: "Le service d'images ne répond pas : vérifiez la connexion. Un bloqueur de publicités peut aussi l'empêcher." };
   }
 
   function compressToDataUrl(blob, maxSize, quality){
@@ -5893,7 +5933,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
     return "telecharge";
   }
-  var APP_VERSION = "8.5";
+  var APP_VERSION = "8.6";
   /* Instantanés de sauvegarde : uniquement le TEXTE (les images sont déjà stockées à part et
      pèseraient trop pour être dupliquées). Filet contre les fausses manœuvres, pas un
      remplacement de l'export complet. */
@@ -7003,7 +7043,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         jourSelectionne: null,
         sessionReprise: null,
         sessionsSauvees: [],
-        detailOrigine: "", creationOuverte: false, collageOuvert: false, collageTexte: "", importEnCours: false, volumeSaisieLibre: false, telechargementApp: false, pileVues: [], reglagesRevOuvert: false, reglagesParcOuvert: false,
+        detailOrigine: "", creationOuverte: false, cleRefusee: false, collageOuvert: false, collageTexte: "", importEnCours: false, volumeSaisieLibre: false, telechargementApp: false, pileVues: [], reglagesRevOuvert: false, reglagesParcOuvert: false,
         lecture: { auto: false, vitesse: 1, enLigne: false }, voixVersion: 0, LANGUES_LECTURE: LANGUES_LECTURE, lectureDisponible: Voix.dispo(),
         palaceDraftVoixTitre: "fr-FR", palaceDraftVoixContenu: "fr-FR", salleDraftVoix: "", gloRecherche: "", GLOSSAIRE: GLOSSAIRE, recapImport: null, iasPerso: [], iasModifs: {}, iasModaleOuverte: false, iaEditionCle: null, GEN_QUESTIONS: GEN_QUESTIONS, GEN_GENRES: GEN_GENRES,
         questionsModifs: {}, questionsPerso: [], questionsModaleOuverte: false, qEditionCle: null,
@@ -7314,6 +7354,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           else { this.volumeSaisieLibre = false; this.gen.volume = v; }
         }
       },
+      /* La clé réellement envoyée : aucune, une fois que le service l'a refusée dans cette session. */
+      cleImages(){ return this.cleRefusee ? "" : this.pollinationsKey; },
+      skinEnPreparation(){ return (this.skinPropositions || []).some(function(p){ return p.ia && p.etat === "chargement"; }); },
       pressePapiersLisible(){ return typeof navigator !== "undefined" && !!(navigator.clipboard && navigator.clipboard.readText); },
       collageAnalyse(){
         var t = this.collageTexte;
@@ -8292,8 +8335,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         this.skinTravail = true;
         try {
           // Une seule image par demande : elle s'ajoute à l'historique, comme pour les objets.
+          if (this.skinEnPreparation) { this.showToast("Une image est déjà en cours de création : patientez quelques secondes.", "erreur"); return; }
           var seed = Math.floor(Math.random() * 1000000000);
-          var lot = [{ seed: seed, url: buildImageUrl(p, seed, this.skinModele, this.pollinationsKey) }];
+          /* Au format de l'écran : en 640 × 640, l'image était agrandie trois fois et rognée pour
+             couvrir un écran, d'où un fond flou. */
+          var portrait = (window.innerHeight || 0) > (window.innerWidth || 0);
+          var largeur = portrait ? 864 : 1536, hauteur = portrait ? 1536 : 864;
+          var lot = [{ seed: seed, ia: true, etat: "chargement", prompt: p, modele: this.skinModele, largeur: largeur, hauteur: hauteur, avecCle: !!this.cleImages,
+                       url: buildImageUrl(p, seed, this.skinModele, this.cleImages, largeur, hauteur) }];
           /* Historique : les propositions précédentes restent disponibles le temps de choisir,
              comme pour les images d'objet. On borne à douze pour ne pas saturer la page. */
           this.skinPropositions = lot.concat(this.skinPropositions || []).slice(0, 12);
@@ -8302,7 +8351,27 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       },
       /* Cliquer une proposition ne remplace plus rien : elle passe en APERÇU. Le fond actuel reste
          en place tant que l'on n'a pas confirmé, et le précédent est gardé pour pouvoir y revenir. */
-      choisirFond(prop){ this.skinApercu = prop; },
+      choisirFond(prop){ if (prop.etat === "chargement" || prop.etat === "echec") return; this.skinApercu = prop; },
+      finChargementFond(prop){
+        if (prop.etat === "ok") return;
+        prop.etat = "ok";
+        if (prop.essaiSansCle) this.signalerCleRefusee();
+      },
+      async echecFond(prop){
+        if (prop.etat === "echec") return;
+        if (prop.ia && prop.avecCle && this.pollinationsKey && !this.cleRefusee && !prop.essaiSansCle) {
+          prop.essaiSansCle = true;
+          prop.url = buildImageUrl(prop.prompt, prop.seed, prop.modele, "", prop.largeur, prop.hauteur);
+          return;
+        }
+        var url = prop.apercu || prop.url;
+        prop.etat = "echec";
+        if (this.skinApercu === prop) this.skinApercu = null;
+        if (!prop.ia) { prop.raison = "Photo indisponible"; return; }
+        var msg = messageEchecImage(await diagnostiquerImage(url));
+        prop.raison = msg.court;
+        this.showToast(msg.long, "erreur");
+      },
       annulerApercu(){ this.skinApercu = null; },
       async appliquerApercu(){
         var prop = this.skinApercu;
@@ -8508,11 +8577,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           return;
         }
         this.pollinationsKey = k;
+        this.cleRefusee = false;
         await Store.set("pm:pollinationsKey", k);
         this.showToast(k ? "Clé enregistrée." : "Clé retirée.", "ok");
       },
       async clearPollinationsKey(){
         this.pollinationsKey = "";
+        this.cleRefusee = false;
         this.pollinationsKeyDraft = "";
         await Store.set("pm:pollinationsKey", "");
         this.showToast("Clé retirée.", "ok");
@@ -8951,6 +9022,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       /* ---------- objets CRUD (ce qu'on mémorise) ---------- */
       newObjet(palace, salle){
         this._detailCloseToken = (this._detailCloseToken || 0) + 1;
+        this.abandonnerGeneration();
         this.currentPalaceId = palace.id;
         this.currentSalleId = salle.id;
         this.detailIsNew = true;
@@ -8967,6 +9039,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       },
       editObjet(palace, salle, objet){
         this._detailCloseToken = (this._detailCloseToken || 0) + 1;
+        this.abandonnerGeneration();
         this.currentPalaceId = palace.id;
         this.currentSalleId = salle.id;
         if (this.view !== "salle") this.view = "salle";
@@ -9005,6 +9078,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       closeDetail(force){
         if (force !== true && this.ficheModifiee &&
             !window.confirm("Fermer sans enregistrer ?\n\nLes modifications de cette fiche, image comprise, seront perdues.")) return;
+        this.abandonnerGeneration();
         this.detailOrigine = "";
         this.detailOpen = false;
         /* Retour au parcours, exactement à la carte quittée : sans cela, ouvrir une fiche pour
@@ -9188,13 +9262,23 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             styleUtilise = this.batchStyleId || null;
           }
           if (!promptEnvoye) return false;
-          var promptEn = await translateToEnglish(promptEnvoye, this.pollinationsKey);
+          var self = this;
+          var promptEn = await translateToEnglish(promptEnvoye, this.cleImages, function(){ self.signalerCleRefusee(); });
           var seed = Math.floor(Math.random() * 1000000000);
           // Le modèle suit le réglage du lot, au lieu d'être figé sur « turbo » : deux images d'un
           // même palais ne venaient pas du même moteur selon qu'on les générait une par une ou en lot.
           var model = this.batchModel === "flux" ? "flux" : "turbo";
-          var url = buildImageUrl(promptEn, seed, model, this.pollinationsKey);
-          var dataUrl = await this.loadAndCompressImage(url);
+          var avecCle = !!this.cleImages;
+          var url = buildImageUrl(promptEn, seed, model, this.cleImages);
+          var dataUrl;
+          try {
+            dataUrl = await this.loadAndCompressImage(url);
+          } catch(e1){
+            // Avec une clé refusée, tout le lot échouait : une seconde tentative sans clé, qui la désigne si elle réussit.
+            if (!avecCle) throw e1;
+            dataUrl = await this.loadAndCompressImage(buildImageUrl(promptEn, seed, model, ""));
+            this.signalerCleRefusee();
+          }
           item.objet.imageDataUrl = dataUrl;
           item.objet.seed = seed;
           item.objet.model = model;
@@ -9260,7 +9344,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
          bien plus courte suffit tout en restant respectueuse du service gratuit. */
       waitForBatchCooldown(consecutiveFailures){
         var isStock = this.batchMode === "stock";
-        var defaultBase = isStock ? 2000 : (this.pollinationsKey ? 9000 : 23000);
+        var defaultBase = isStock ? 2000 : (this.cleImages ? 9000 : 23000);
         var base = this._batchWaitMs != null ? this._batchWaitMs : defaultBase;
         var backoff = 1 + Math.min(consecutiveFailures || 0, 4) * 0.7;
         var jitterFactor = 0.85 + Math.random() * 0.5; // entre 0.85x et 1.35x
@@ -9905,13 +9989,17 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (this.isCoolingDown || this.generating) return;
         var promptFr = (this.detailObjet.prompt || "").trim();
         if (!promptFr) { this.showToast("Ajoutez une description avant de générer une image.", "erreur"); return; }
+        var self = this;
+        var jeton = this._jetonGeneration = (this._jetonGeneration || 0) + 1;
         this.generating = true;
+        this._essaiSansCle = false;
         var promptEn;
         if (this._lastPromptFr === promptFr && this._lastPromptEn) {
           promptEn = this._lastPromptEn;
         } else {
           this.translating = true;
-          promptEn = await translateToEnglish(promptFr, this.pollinationsKey);
+          promptEn = await translateToEnglish(promptFr, this.cleImages, function(){ self.signalerCleRefusee(); });
+          if (jeton !== this._jetonGeneration) return;   // fiche fermée ou changée pendant la traduction
           this.translating = false;
           this._lastPromptFr = promptFr;
           this._lastPromptEn = promptEn;
@@ -9919,11 +10007,35 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         var seed = Math.floor(Math.random() * 1000000000);
         this._pendingSeed = seed;
         this._pendingModel = this.previewModel;
-        this.previewUrl = buildImageUrl(promptEn, seed, this._pendingModel, this.pollinationsKey);
+        this._pendingPromptEn = promptEn;
+        this._pendingAvecCle = !!this.cleImages;
+        this.previewUrl = buildImageUrl(promptEn, seed, this._pendingModel, this.cleImages);
+        clearTimeout(this._minuterieGeneration);
+        this._minuterieGeneration = setTimeout(function(){
+          if (jeton !== self._jetonGeneration || !self.generating) return;
+          self.abandonnerGeneration();
+          self.previewUrl = "";
+          self.showToast("Le service d'images n'a pas répondu à temps : relancez la génération.", "erreur");
+        }, DELAI_MAX_GENERATION);
         this.startCooldown();
       },
+      /* Abandon propre d'une génération en cours : à l'ouverture ou à la fermeture d'une fiche.
+         Avant, rien ne la terminait si l'aperçu disparaissait : « Générer » restait muet et une
+         roue tournait sur toutes les fiches suivantes, jusqu'au rechargement de la page. */
+      abandonnerGeneration(){
+        this._jetonGeneration = (this._jetonGeneration || 0) + 1;
+        clearTimeout(this._minuterieGeneration);
+        this.generating = false;
+        this.translating = false;
+        this._essaiSansCle = false;
+      },
+      signalerCleRefusee(){
+        if (this.cleRefusee || !this.pollinationsKey) return;
+        this.cleRefusee = true;
+        this.showToast("Le service refuse votre clé Pollinations (crédits épuisés ou clé expirée) : l'application continue sans clé. Voir Paramètres → Clés d'accès.", "erreur");
+      },
       startCooldown(){
-        var wait = this.pollinationsKey ? 6000 : 16000;
+        var wait = this.cleImages ? 6000 : 16000;
         this.cooldownUntil = Date.now() + wait;
         var self = this;
         if (this._cooldownTimer) clearInterval(this._cooldownTimer);
@@ -9933,7 +10045,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         }, 250);
       },
       onPreviewLoad(){
+        clearTimeout(this._minuterieGeneration);
         this.generating = false;
+        if (this._essaiSansCle) { this._essaiSansCle = false; this.signalerCleRefusee(); }
         if (this.previewUrl) {
           var url = this.previewUrl, seed = this._pendingSeed, model = this._pendingModel;
           var already = this.previewHistory.some(function(h){ return h.url === url; });
@@ -9943,10 +10057,21 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           }
         }
       },
-      onPreviewError(){
-        this.generating = false;
-        this.showToast("La génération a échoué (réseau ou service occupé). Réessayez dans quelques secondes.", "erreur");
+      async onPreviewError(){
+        var url = this.previewUrl;
+        if (!url) { this.abandonnerGeneration(); return; }
+        // Avec une clé, l'échec vient souvent d'elle : une seconde tentative, sans clé.
+        if (this._pendingAvecCle && this.pollinationsKey && !this.cleRefusee) {
+          this._pendingAvecCle = false;
+          this._essaiSansCle = true;
+          this.previewUrl = buildImageUrl(this._pendingPromptEn, this._pendingSeed, this._pendingModel, "");
+          return;
+        }
+        this.abandonnerGeneration();
         this.previewUrl = "";
+        var jeton = this._jetonGeneration;
+        var msg = messageEchecImage(await diagnostiquerImage(url));
+        if (jeton === this._jetonGeneration) this.showToast(msg.long, "erreur");
       },
       /* saveGeneratedImage() sans argument enregistre l'aperçu en cours (bouton "Utiliser cette
          image"). Appelée avec une entrée de previewHistory, elle enregistre plutôt cette
@@ -10711,7 +10836,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         L.push("");
         L.push("-- RÉGLAGES --");
         ligne("Source des photos", this.imageSource + " (préférée : " + this.sourcePreferee + ")");
-        ligne("Clé Pollinations", this.pollinationsKey ? "renseignée" : "absente");
+        ligne("Clé Pollinations", this.pollinationsKey ? (this.cleRefusee ? "renseignée, refusée par le service" : "renseignée") : "absente");
         var self = this;
         (this.SOURCES || []).forEach(function(s){
           if (s.champs && s.champs.length) ligne("Clé " + s.nom, self.etatSource(s));
@@ -12072,7 +12197,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       },
       /* Ordre de grandeur honnête : une vingtaine de secondes par image sans clé de service. */
       dureeImages(n){
-        var s = n * (this.pollinationsKey ? 9 : 23);   // délai réellement appliqué en lot
+        var s = n * (this.cleImages ? 9 : 23);   // délai réellement appliqué en lot
         if (s < 60) return "moins d'une minute";
         var min = Math.ceil(s / 60);
         if (min < 60) return min + " minute" + (min > 1 ? "s" : "");
