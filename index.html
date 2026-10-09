@@ -1883,6 +1883,26 @@
   .skin-prop-etat{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:4px; text-align:center; font-size:12px; color:var(--text-dim); background:var(--bg-elevated);}
   .skin-prop-etat.echec{color:var(--c-orange);}
   .skin-prop.echec{cursor:not-allowed; border-style:dashed; border-color:var(--border);}
+
+  /* ===== Fenêtres trop longues (8.8) =====
+     Une fenêtre plus haute que l'écran débordait hors d'atteinte : sur ordinateur, une règle la
+     bornait à 92 % de l'écran sans la laisser défiler, et ses boutons sortaient du cadre ; sur
+     téléphone, son haut passait au-dessus de l'écran. Désormais le fond défile, et la marge
+     automatique garde centrée — ou collée en bas sur téléphone — toute fenêtre qui tient. */
+  .modal-scrim{overflow-y:auto; overscroll-behavior:contain; align-items:flex-start;}
+  .modal-scrim:not(.plein-ecran) > .modal{margin:auto; flex-shrink:0;}
+  @media (max-width:880px){ .modal-scrim:not(.plein-ecran) > .modal{margin:auto 0 0;} }
+  @media (min-width:881px) and (max-height:820px){ .modal{max-height:none;} }
+  /* Fenêtres à liste : titre et boutons fixes, seule la partie centrale défile. */
+  .modal.fenetre-defilante, .modal.gestion-ias{max-height:calc(100vh - 40px); max-height:calc(100dvh - 40px);}
+  @media (max-width:880px){ .modal.fenetre-defilante, .modal.gestion-ias{max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px);} }
+  .modal.fenetre-defilante{display:flex; flex-direction:column; overflow:hidden;}
+  .modal.fenetre-defilante > *{flex:0 0 auto;}
+  .modal.fenetre-defilante > .fenetre-corps{flex:1 1 auto; min-height:60px; overflow-y:auto; overscroll-behavior:contain;}
+  .modal.fenetre-defilante > .modal-actions{margin-top:12px; padding-top:12px; border-top:1px solid var(--border-soft);}
+  .recap-ecartees{text-align:left;}
+  .recap-ecartees summary{cursor:pointer;}
+  .recap-ecartees[open] summary{margin-bottom:4px;}
 </style>
 </head>
 <body>
@@ -4475,12 +4495,14 @@
 
     <!-- ===== MODAL CONFLIT D'IMPORT (noms de palais déjà existants) ===== -->
     <div v-if="importConflictModalOpen" class="modal-scrim" @click.self="cancelImport">
-      <div class="modal">
+      <div class="modal fenetre-defilante">
         <h3>Palais déjà existant{{ pendingImportCollisions.length>1?'s':'' }}<button type="button" class="aide-btn" @click.stop="basculerAideSection($event)" aria-expanded="false" aria-label="Afficher l'explication" data-info="Afficher ou masquer l'explication">?</button></h3>
         <p class="explication">Ce fichier contient {{ pendingImportCollisions.length>1 ? 'des palais qui portent déjà le nom' : 'un palais qui porte déjà le nom' }} d'un palais existant :</p>
-        <ul style="margin:8px 0 4px; padding-left:20px; font-size:13.5px; color:var(--text-muted);">
+        <div class="fenetre-corps">
+        <ul style="margin:8px 0 4px; padding-left:20px; font-size:14px; color:var(--text-muted);">
           <li v-for="n in pendingImportCollisions" :key="n">« {{ n }} »</li>
         </ul>
+        </div>
         <p class="sub" style="margin-top:10px;">Que voulez-vous faire pour {{ pendingImportCollisions.length>1 ? 'ces palais' : 'ce palais' }} ?</p>
         <div class="modal-actions" style="flex-wrap:wrap; justify-content:flex-end;">
           <button class="btn ghost" @click="cancelImport">Annuler tout</button>
@@ -4616,9 +4638,10 @@
 
     <!-- Coller un tableau : la réponse d'une IA, sans fichier — c'est ce qui rend l'import possible sur téléphone -->
     <div v-if="collageOuvert" class="modal-scrim" @click.self="fermerCollage">
-      <div class="modal collage-tableau" role="dialog" aria-labelledby="ct-titre">
+      <div class="modal collage-tableau fenetre-defilante" role="dialog" aria-labelledby="ct-titre">
         <h3 id="ct-titre">Coller un tableau</h3>
         <p class="gen-aide-courte">Copiez la réponse de l'IA — le tableau seul, ou toute la réponse : l'application retrouve le tableau, même dans un bloc de code ou entouré de texte.</p>
+        <div class="fenetre-corps">
         <button v-if="pressePapiersLisible" type="button" class="btn small collage-coller" @click="collerPressePapiers">Coller depuis le presse-papiers</button>
         <textarea v-model="collageTexte" class="collage-zone" rows="8" spellcheck="false" aria-label="Tableau à importer" placeholder="palais;salle;objet;contenu;mnemo;prompt;tags;favori;image&#10;…"></textarea>
         <div v-if="collageAnalyse" class="collage-etat" :class="collageAnalyse.fiches ? 'ok' : 'erreur'" role="status">
@@ -4635,6 +4658,7 @@
           <ul><li v-for="(e, k) in collageAnalyse.ecartees.slice(0, 6)" :key="k">Ligne {{ e.ligne }} — {{ e.raison }} : <q>{{ e.extrait }}</q></li></ul>
           <p v-if="collageAnalyse.ecartees.length > 6">… et {{ collageAnalyse.ecartees.length - 6 }} autre(s).</p>
         </div>
+        </div>
         <div class="modal-actions">
           <button class="btn ghost" @click="fermerCollage">Annuler</button>
           <button class="btn primary" :disabled="!collageAnalyse || !collageAnalyse.fiches || importEnCours" @click="importerCollage">Importer{{ collageAnalyse && collageAnalyse.fiches ? ' (' + collageAnalyse.fiches + ')' : '' }}</button>
@@ -4644,10 +4668,11 @@
 
     <!-- Bilan d'import : l'import est terminé, les images sont une option -->
     <div v-if="recapImport" class="modal-scrim" @click.self="fermerRecapImport">
-      <div class="modal recap-import" role="dialog" aria-labelledby="recap-titre">
+      <div class="modal recap-import fenetre-defilante" role="dialog" aria-labelledby="recap-titre">
         <div class="recap-coche" aria-hidden="true">✓</div>
         <h3 id="recap-titre">Import terminé</h3>
         <p class="recap-total"><strong>{{ recapImport.total }} fiche{{ recapImport.total > 1 ? 's' : '' }}</strong> enregistrée{{ recapImport.total > 1 ? 's' : '' }}. Vous pouvez réviser dès maintenant.</p>
+        <div class="fenetre-corps">
         <ul class="recap-palais">
           <li v-for="p in recapImport.palais" :key="p.id">
             <span class="accent-dot" :style="{background: accentColor(p.accent)}"></span>
@@ -4656,15 +4681,16 @@
             <button v-if="recapImport.palais.length > 1" class="btn ghost small" @click="ouvrirPalaisImporte(p.id)">Ouvrir</button>
           </li>
         </ul>
-        <div class="collage-ecartees recap-ecartees" v-if="recapImport.ecartees && recapImport.ecartees.length">
-          <strong>{{ recapImport.ecartees.length }} ligne{{ recapImport.ecartees.length > 1 ? 's' : '' }} écartée{{ recapImport.ecartees.length > 1 ? 's' : '' }}</strong>, plutôt que d'être importée{{ recapImport.ecartees.length > 1 ? 's' : '' }} de travers :
+        <details class="collage-ecartees recap-ecartees" v-if="recapImport.ecartees && recapImport.ecartees.length">
+          <summary><strong>{{ recapImport.ecartees.length }} ligne{{ recapImport.ecartees.length > 1 ? 's' : '' }} écartée{{ recapImport.ecartees.length > 1 ? 's' : '' }}</strong>, plutôt que d'être importée{{ recapImport.ecartees.length > 1 ? 's' : '' }} de travers — voir le détail</summary>
           <ul><li v-for="(e, k) in recapImport.ecartees.slice(0, 6)" :key="k">Ligne {{ e.ligne }} — {{ e.raison }} : <q>{{ e.extrait }}</q></li></ul>
           <p v-if="recapImport.ecartees.length > 6">… et {{ recapImport.ecartees.length - 6 }} autre(s).</p>
-        </div>
+        </details>
         <div class="recap-images" v-if="recapImport.sansImage.length">
           <h4>Ajouter des images ? <span>facultatif</span></h4>
           <p>{{ recapImport.sansImage.length }} fiche{{ recapImport.sansImage.length > 1 ? 's' : '' }} sans image. Les images aident à mémoriser, mais leur création demande une connexion internet et prend du temps : environ {{ dureeImages(recapImport.sansImage.length) }}{{ cleImages ? '' : ' sans clé de service' }}.</p>
           <p class="stock-hint">Vous pourrez le faire plus tard : menu « Plus » d'un palais, ou Paramètres → Images en lot.</p>
+        </div>
         </div>
         <div class="modal-actions">
           <button class="btn ghost" :class="{primary: recapImport.palais.length !== 1}" @click="fermerRecapImport">Terminer</button>
@@ -5933,7 +5959,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
     return "telecharge";
   }
-  var APP_VERSION = "8.7";
+  var APP_VERSION = "8.8";
   /* Instantanés de sauvegarde : uniquement le TEXTE (les images sont déjà stockées à part et
      pèseraient trop pour être dupliquées). Filet contre les fausses manœuvres, pas un
      remplacement de l'export complet. */
@@ -9671,7 +9697,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             this.showToast("Aucune ligne valide trouvée (colonnes attendues : palais, salle, objet, contenu)." + (ecartees.length ? " " + ecartees.length + " ligne(s) écartée(s) : " + ecartees[0].raison + "." : ""), "erreur");
             return;
           }
-          this.showToast(mergeResult.count + " objet(s) importé(s)/mis à jour." + (ecartees.length ? " " + ecartees.length + " ligne(s) écartée(s)." : ""), ecartees.length ? "erreur" : "ok");
+          // Le bilan qui s'ouvre dit déjà tout : le message le répétait, et sur téléphone il
+          // recouvrait ses boutons. Il ne reste que pour le bilan des images, qui ne cite pas les lignes écartées.
+          if (mergeResult.imagesDemandees) this.showToast(mergeResult.count + " objet(s) importé(s)/mis à jour." + (ecartees.length ? " " + ecartees.length + " ligne(s) écartée(s)." : ""), ecartees.length ? "erreur" : "ok");
           // Si le tableur demandait des images, le résultat mérite un vrai bilan consultable :
           // un message fugace passait inaperçu derrière la proposition de génération, et
           // l'utilisateur croyait que la colonne « image » n'avait pas été prise en compte.
